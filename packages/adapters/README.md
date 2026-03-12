@@ -1,0 +1,102 @@
+# @footprint/adapters
+
+Adapter registry, capability contracts, and service bridge for profile-based behavior switching.
+
+## Why this exists
+
+Different profile types need different implementations for the same operation. A K-12 school schedules with fixed timetables; a dance studio uses flexible time slots; a music school books individual appointments. The operation is the same ("schedule a class"), but the logic differs per profile.
+
+This package solves that by introducing **capabilities** (what needs to be done) and **adapters** (how to do it per profile). The **service bridge** routes calls to the right adapter at runtime based on the requesting unit's profile type.
+
+This is the core of the "Shopify for X" configurability — one platform, many behaviors.
+
+## Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Capability** | A named operation contract (e.g., "schedule-class", "process-payment") |
+| **Adapter** | A concrete implementation of a capability for a specific context |
+| **AdapterMapping** | Routes `capabilityId + profileType → adapterId` |
+| **ServiceBridge** | Runtime dispatcher — resolves the adapter, calls it, wraps the result |
+
+## Usage
+
+```ts
+import { createAdapterRegistry, createServiceBridge } from "@footprint/adapters";
+
+// Define capabilities
+const capabilities = [
+  { id: "schedule", name: "Schedule Class", domain: "scheduling", description: "Schedule a class" },
+];
+
+// Define adapters
+const fixedTimetable = {
+  id: "fixed-timetable",
+  name: "Fixed Timetable",
+  capabilityId: "schedule",
+  async execute(input, context) {
+    return { scheduled: true, pattern: "fixed" };
+  },
+};
+
+const timeSlots = {
+  id: "time-slots",
+  name: "Time Slots",
+  capabilityId: "schedule",
+  async execute(input, context) {
+    return { scheduled: true, pattern: "slots" };
+  },
+};
+
+// Wire them together
+const registry = createAdapterRegistry({
+  capabilities,
+  adapters: [fixedTimetable, timeSlots],
+  mappings: [
+    { capabilityId: "schedule", profileAdapters: { k12: "fixed-timetable", dance: "time-slots" } },
+  ],
+});
+
+// Use the bridge
+const bridge = createServiceBridge(registry);
+const result = await bridge.execute("schedule", { className: "Math" }, {
+  profileType: "dance",
+  unitId: "studio-1",
+});
+// → Uses timeSlots adapter
+```
+
+## API
+
+### `createAdapterRegistry(input)`
+
+Creates an adapter registry from capabilities, adapters, and mappings.
+
+- `getCapability(id)` — Look up a capability definition
+- `getAdapter(id)` — Look up an adapter by ID
+- `resolve(capabilityId, profileType)` — Find the right adapter for a capability + profile
+- `capabilityIds()` — List all registered capability IDs
+- `validate()` — Check for orphaned references
+
+### `createServiceBridge(registry)`
+
+Creates a service bridge that dispatches calls.
+
+- `execute(capabilityId, input, context)` — Route to the correct adapter
+- `hasAdapter(capabilityId, profileType)` — Check if a route exists
+- `availableCapabilities(profileType)` — List available capabilities for a profile
+
+## Error handling
+
+- Adapter throws → bridge catches, returns `{ status: "error", error: "..." }`
+- No adapter found → returns `{ status: "no-adapter" }`
+- Non-Error throws → captured as string
+
+## Tests
+
+39 tests across 6 files:
+- **Unit**: adapterRegistry, serviceBridge
+- **Scenario**: realistic scheduling (K-12 vs dance vs music adapters)
+- **Property**: invariants with fast-check
+- **Boundary**: large registries
+- **Security**: validation, prototype pollution, error containment

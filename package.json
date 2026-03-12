@@ -1,0 +1,14 @@
+{
+  "name": "footprint-blueprint",
+  "private": true,
+  "description": "Define modules once, derive everything — a domain-agnostic platform framework",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

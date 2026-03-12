@@ -1,0 +1,28 @@
+{
+  "name": "@footprint/tenancy",
+  "version": "0.1.0",
+  "description": "Multi-tenant context resolution, profile binding, and feature gate middleware",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@footprint/features": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "fast-check": "^3.23.0"
+  }
+}
