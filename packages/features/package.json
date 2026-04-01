@@ -8,7 +8,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
@@ -18,8 +19,11 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "fast-check": "^3.23.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0",
-    "fast-check": "^3.23.0"
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "footprintjs": "^4.0.4"
   }
 }
