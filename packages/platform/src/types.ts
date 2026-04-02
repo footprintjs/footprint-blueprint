@@ -8,7 +8,7 @@
 import type { ModuleRegistry, ResolvedProfileConfig } from "@footprint/features";
 import type { ProfileStore, TenantContext, GateMiddlewareResult } from "@footprint/tenancy";
 import type { AdapterRegistry } from "@footprint/adapters";
-import type { ActionRegistry, MCPToolDefinition, ActionResult } from "@footprint/actions";
+import type { ActionRegistry, MCPToolDefinition, ActionResult, TraceRecorder } from "@footprint/actions";
 import type { SeedPlan } from "@footprint/seed";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +31,8 @@ export type PlatformConfig = {
   readonly adapterRegistry?: AdapterRegistry;
   /** Optional action registry for MCP tool export and action execution */
   readonly actionRegistry?: ActionRegistry;
+  /** Optional trace recorder for persisting execution traces */
+  readonly traceRecorder?: TraceRecorder;
 };
 
 // ---------------------------------------------------------------------------

@@ -68,6 +68,76 @@ export type ActionTrace = {
 };
 
 // ---------------------------------------------------------------------------
+// Execution trace — full flow execution capture for observability
+// ---------------------------------------------------------------------------
+
+/**
+ * Complete execution trace captured from a flow run.
+ * Contains everything needed to replay, visualize, and debug the execution.
+ * The shape is defined by the execution engine (footprintjs) — this type
+ * is intentionally loosely typed so the blueprint doesn't depend on footprintjs.
+ */
+export type ExecutionTrace = {
+  /** Unique run identifier */
+  readonly runId: string;
+  /** Which flow/action was executed */
+  readonly flowId: string;
+  /** Execution outcome */
+  readonly status: "ok" | "error";
+  /** ISO timestamp when execution started */
+  readonly startedAt: string;
+  /** ISO timestamp when execution completed */
+  readonly completedAt: string;
+  /** Error message if status is error */
+  readonly errorMessage?: string;
+  /** Final output of the flow */
+  readonly output?: Readonly<Record<string, unknown>>;
+  /** Flow specification tree (for graph visualization) */
+  readonly flowSpec?: unknown;
+  /** Stage descriptions keyed by stage ID */
+  readonly stageDescriptions?: Readonly<Record<string, string>>;
+  /** Execution tree from the flow engine (stage contexts, commit history) */
+  readonly executionSnapshot?: unknown;
+  /** State at each execution step (for time-travel debugging) */
+  readonly historySnapshots?: readonly Readonly<Record<string, unknown>>[];
+  /** Human-readable narrative of what happened */
+  readonly narrative?: readonly string[];
+  /** Structured narrative entries */
+  readonly narrativeEntries?: readonly unknown[];
+};
+
+// ---------------------------------------------------------------------------
+// Trace recorder — port for trace persistence
+// ---------------------------------------------------------------------------
+
+/** Context passed to the trace recorder identifying what was executed. */
+export type TraceRecordContext = {
+  /** Entity domain (e.g., "product", "order", "subscriber") */
+  readonly entityType: string;
+  /** Entity identifier (e.g., product ID, order ID, email) */
+  readonly entityId: string;
+  /** Profile type of the executing unit */
+  readonly profileType: string;
+  /** Unit ID that executed the action */
+  readonly unitId: string;
+};
+
+/**
+ * A trace recorder persists execution traces for observability.
+ *
+ * This is a port — the application layer provides the implementation
+ * (e.g., S3 + DynamoDB, CloudWatch, a file on disk for local dev).
+ * The platform calls this after every flow execution if one is configured.
+ *
+ * Implementations should not throw — trace persistence failures must not
+ * crash the action. Log errors internally and return normally.
+ */
+export type TraceRecorder = {
+  /** Persist an execution trace. Must not throw. */
+  record(trace: ExecutionTrace, context: TraceRecordContext): Promise<void>;
+};
+
+// ---------------------------------------------------------------------------
 // Action result
 // ---------------------------------------------------------------------------
 
@@ -85,6 +155,8 @@ export type ActionResult = {
   readonly duration: number;
   /** Execution trace for observability */
   readonly trace?: ActionTrace;
+  /** Full execution trace (when available from flow execution) */
+  readonly executionTrace?: ExecutionTrace;
 };
 
 // ---------------------------------------------------------------------------
