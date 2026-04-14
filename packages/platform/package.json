@@ -24,7 +24,7 @@
     "@footprint/features": "workspace:*",
     "@footprint/seed": "workspace:*",
     "@footprint/tenancy": "workspace:*",
-    "footprintjs": "^4.0.4"
+    "footprintjs": "^4.12.2"
   },
   "devDependencies": {
     "fast-check": "^3.23.0",

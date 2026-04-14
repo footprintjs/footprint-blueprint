@@ -24,6 +24,6 @@
     "vitest": "^2.1.0"
   },
   "dependencies": {
-    "footprintjs": "^4.0.4"
+    "footprintjs": "^4.12.2"
   }
 }
