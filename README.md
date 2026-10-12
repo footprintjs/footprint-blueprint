@@ -2,6 +2,16 @@
 
 **Define once, derive everything** — a domain-agnostic platform framework for building configurable multi-tenant systems.
 
+## Version 0.2 migration
+
+All packages pin the published `footprintjs@10.0.0` runtime and use Node 24.15–24.x, TypeScript 7 and pnpm 12.11.2. Actions execute real SDK stages. The prepared local release is Actions / Platform **0.3.2** and Features / Tenancy / Seed / Adapters **0.2.1**, used with `smallbusiness-footprint` **0.2.4**. These library packages have not been published to npm. This preparation changes documentation, package metadata and build-before-pack hooks; runtime source is unchanged from the tested migration and shared-evidence baseline.
+
+Start with the [tarball-kit quickstart](docs/QUICKSTART.md) to run reduced examples derived from booking decisions and Charming Cherubs publication. See the [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) for versions, verification and the separate Node 22 school compatibility path.
+
+Profile stores now accept the complete `{tenantId, campusId?, unitId}` scope and return a matching binding with a monotonically increasing `revision`. Definitions are immutable; caches derive configuration from strong binding reads, expire after 30 seconds by default, are bounded, and expose invalidation. Missing registry dependencies fail validation. Seed execution stops by default on failure; it does not provide a publication transaction.
+
+Execution and tool discovery require a trusted host `authorizer`, an actual handler/adapter, enabled modules and strict input schemas. Missing authorization denies access. Role declarations alone do not grant access. The host owns authentication, CSRF, durable transactions and provider acknowledgements. Trace recording uses real SDK stages without private payloads by default and cannot turn a committed success into failure. See each package README for the updated contracts.
+
 ## The problem
 
 You're building a platform that serves different types of customers. Each customer type needs a different set of features, different terminology, different behavior for the same operations, and different seed data to get started.
@@ -76,14 +86,14 @@ Dependencies flow strictly upward. No cycles, no peer deps between layers. Each 
 
 | Package | Layer | Purpose | Tests |
 |---------|-------|---------|-------|
-| [@footprint/features](packages/features/) | 1 | Module registry — define modules, profiles, feature gates, terminology | 129 |
-| [@footprint/tenancy](packages/tenancy/) | 2 | Multi-tenant context resolution, profile binding, gate middleware | 62 |
-| [@footprint/seed](packages/seed/) | 3 | Seed plan generation and execution per profile per module | 37 |
-| [@footprint/adapters](packages/adapters/) | 4 | Capability contracts, adapter registry, service bridge | 39 |
-| [@footprint/actions](packages/actions/) | 5 | Action registry, MCP/OpenAPI export, traced execution | 49 |
-| [@footprint/platform](packages/platform/) | 6 | Orchestration — single entry point wiring all layers | 34 |
+| [@footprint/features](packages/features/) | 1 | Module registry — define modules, profiles, feature gates, terminology | 136 |
+| [@footprint/tenancy](packages/tenancy/) | 2 | Multi-tenant context resolution, profile binding, gate middleware | 73 |
+| [@footprint/seed](packages/seed/) | 3 | Seed plan generation and execution per profile per module | 43 |
+| [@footprint/adapters](packages/adapters/) | 4 | Capability contracts, adapter registry, service bridge | 42 |
+| [@footprint/actions](packages/actions/) | 5 | Action registry, MCP/OpenAPI export, traced execution | 103 |
+| [@footprint/platform](packages/platform/) | 6 | Orchestration — single entry point wiring all layers | 43 |
 
-**350 tests** across 6 packages. Every package has unit, scenario, property-based, boundary, and security tests.
+**440 tests** across 6 packages. Every package has unit, scenario, property-based, boundary, and security tests.
 
 ## How it works
 
@@ -170,14 +180,16 @@ const result = await bridge.execute("schedule-class", input, {
 Actions are exported as MCP tool definitions (for LLMs) or OpenAPI specs (for REST clients) via the SchemaExporter adapter pattern.
 
 ```typescript
-// Built-in MCP export
-const tools = actionRegistry.toMCPTools(config.enabledModules);
-
-// Built-in OpenAPI export
-const openapi = actionRegistry.exportActions(config.enabledModules, createOpenAPIExporter());
-
-// Custom export format
-const custom = actionRegistry.exportActions(config.enabledModules, myCustomExporter);
+const discovery = {
+  enabledModules: config.enabledModules,
+  context: { tenantId: "tenant-1", unitId: "studio-1", profileType: "dance", userId: session.userId },
+  authorizer: ({ action, context, purpose }) => verifiedPolicy.can(context.userId, action.id, purpose),
+  hasImplementation: action => registeredHandlers.has(action.id),
+};
+const tools = await actionRegistry.toMCPTools(discovery);
+const openapi = await actionRegistry.exportActions(discovery, createOpenAPIExporter());
+const custom = await actionRegistry.exportActions(discovery, myCustomExporter);
+// These are descriptors. The host supplies an authenticated MCP/HTTP transport.
 ```
 
 ### 7. Wire everything with one call (Layer 6)
@@ -185,7 +197,12 @@ const custom = actionRegistry.exportActions(config.enabledModules, myCustomExpor
 The platform package is the glue. One `createPlatform()` call wires all layers together.
 
 ```typescript
-const platform = createPlatform({ registry, profileStore, adapterRegistry, actionRegistry });
+const platform = createPlatform({
+  registry, profileStore, adapterRegistry, actionRegistry,
+  authorizer: ({ action, context, purpose }) => verifiedPolicy.can(context.userId, action.id, purpose),
+  handlers: { "enroll-student": async (_id, input, context) => enrollment.enroll(input, context) },
+  traceRecorder,
+});
 
 const setup = await platform.setupUnit(ctx);          // config + seed plan
 const gate = await platform.gateCheck(ctx, ["fees"]); // feature gate
@@ -219,9 +236,9 @@ Nothing in this framework is specific to schools, e-commerce, healthcare, or any
 
 ## Relationship to footprintjs
 
-[footprintjs](https://github.com/footprintjs/footPrint) is the execution engine — it turns flowcharts into running code with automatic causal traces for AI reasoning.
+[footprintjs](https://github.com/footprintjs/footPrint) is the execution engine: it runs flowcharts and records the stages and state made visible by the application. Shared execution receipts supplement those native recordings with host-reported observations, effect phases, outcomes and related runs. Their coverage and limitations remain explicit; they do not establish complete database causality or private model reasoning.
 
-footprint-blueprint is the configuration layer — it defines **what** exists (modules, profiles, gates, adapters, actions) but not **how** things execute.
+footprint-blueprint defines modules, profiles, gates, adapters and actions. Its action executor runs deterministic authorize/validate/execute/acknowledge stages with FootprintJS 10. Domain-specific workflows still own the business operations and storage/provider transactions.
 
 A domain-specific wrapper (e.g., SchoolFootprint) brings them together: blueprint modules become footprintjs services, each service is a flowchart with stages, and the manifest tracks which services ran and what happened.
 
@@ -242,11 +259,13 @@ Every package has 5 types of tests:
 - **Boundary** — limits, edge cases, performance
 - **Security** — validation, injection prevention, immutability
 
-## Setup
+## Source setup
+
+Use Node 24.15–24.x and pnpm 12.11.2. For a consumer example, use the [release-kit quickstart](docs/QUICKSTART.md). For this independent Blueprint workspace:
 
 ```bash
-pnpm install
-pnpm test        # run all 350 tests
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm test        # run all 440 tests
 pnpm typecheck   # type-check all packages
 pnpm build       # build all packages
 ```

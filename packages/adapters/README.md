@@ -100,3 +100,11 @@ Creates a service bridge that dispatches calls.
 - **Property**: invariants with fast-check
 - **Boundary**: large registries
 - **Security**: validation, prototype pollution, error containment
+
+## Runtime contracts in 0.2
+
+Capability metadata, adapter port selection and profile mappings are captured and frozen at registration. Changing caller-owned arrays, definitions or mappings afterward cannot reroute a bridge. Adapter code remains a trusted injected port; use closures for provider state rather than mutating registry definitions.
+
+`registry.validate()` reports unknown capabilities/adapters and mappings selecting an adapter for a different capability. `createServiceBridge()` rejects invalid registries before provider execution. Resolution only considers own profile mapping keys, then the declared default; inherited object properties cannot select a provider.
+
+Bridge calls preserve tenant/campus/unit context and optional exact `actionId`. Results retain provider error code, HTTP status and trace run ID, plus a nonenumerable original cause. These fields let the host preserve typed conflict/payment outcomes. The bridge itself does not authorize callers or validate action inputs: use `@footprint/actions` / `@footprint/platform` with a trusted authorizer and schema before reaching it.

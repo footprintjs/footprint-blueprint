@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createTenantContext } from "@footprint/tenancy";
-import { createPlatform } from "../../platform.js";
+import { createAuthorizedTestPlatform as createPlatform } from "../fixtures.js";
 import {
   createTestRegistry,
   createTestProfileStore,

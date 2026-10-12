@@ -53,6 +53,9 @@ export type Adapter<TInput = unknown, TOutput = unknown> = {
 export type AdapterContext = {
   readonly profileType: string;
   readonly unitId: string;
+  readonly tenantId?: string;
+  readonly campusId?: string;
+  readonly actionId?: string;
   readonly userId?: string;
   readonly meta?: Readonly<Record<string, unknown>>;
 };
@@ -85,5 +88,9 @@ export type BridgeResult<T = unknown> = {
   readonly adapterId?: string;
   readonly result?: T;
   readonly error?: string;
+  readonly errorCode?: string;
+  readonly httpStatus?: number;
+  readonly traceRunId?: string;
+  readonly cause?: unknown;
   readonly duration: number;
 };

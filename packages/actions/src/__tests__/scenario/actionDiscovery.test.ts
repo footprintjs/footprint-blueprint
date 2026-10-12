@@ -1,3 +1,4 @@
+import { createMCPExporter } from '../../exporters.js';
 import { describe, it, expect } from "vitest";
 import { createActionRegistry } from "../../actionRegistry.js";
 import { createActionExecutor } from "../../actionExecutor.js";
@@ -82,7 +83,7 @@ describe("scenario: action discovery per school profile", () => {
 
   it("K-12 school sees full action set", () => {
     const k12Modules = new Set(["students", "attendance", "scheduling", "fees"]);
-    const tools = registry.toMCPTools(k12Modules);
+    const tools = registry.exportMetadata(k12Modules, createMCPExporter());
 
     expect(tools).toHaveLength(5);
     const toolNames = tools.map((t) => t.name);
@@ -95,7 +96,7 @@ describe("scenario: action discovery per school profile", () => {
 
   it("dance school without fees sees reduced set", () => {
     const danceModules = new Set(["students", "attendance", "scheduling"]);
-    const tools = registry.toMCPTools(danceModules);
+    const tools = registry.exportMetadata(danceModules, createMCPExporter());
 
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toContain("create-student");
@@ -107,7 +108,7 @@ describe("scenario: action discovery per school profile", () => {
 
   it("minimal school with only students sees student actions + reports", () => {
     const minModules = new Set(["students"]);
-    const tools = registry.toMCPTools(minModules);
+    const tools = registry.exportMetadata(minModules, createMCPExporter());
 
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toContain("create-student");
@@ -133,7 +134,7 @@ describe("scenario: action discovery per school profile", () => {
   });
 
   it("MCP tools have valid JSON Schema structure", () => {
-    const tools = registry.toMCPTools(new Set(["students", "attendance", "scheduling", "fees"]));
+    const tools = registry.exportMetadata(new Set(["students", "attendance", "scheduling", "fees"]), createMCPExporter());
 
     for (const tool of tools) {
       expect(tool.inputSchema.type).toBe("object");
@@ -148,7 +149,7 @@ describe("scenario: action discovery per school profile", () => {
   });
 
   it("executor can handle discovered actions", async () => {
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute(
       "create-student",

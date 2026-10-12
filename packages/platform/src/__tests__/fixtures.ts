@@ -1,3 +1,4 @@
+import { createPlatform } from '../platform.js';
 /**
  * Shared test fixtures for @footprint/platform tests.
  *
@@ -172,11 +173,11 @@ export function createTestRegistry(): ModuleRegistry {
 }
 
 export function createTestProfileStore(): ProfileStore & {
-  addBinding(binding: { unitId: string; profileType: string; createdAt: string }): void;
+  addBinding(binding: import("@footprint/tenancy").ProfileBinding): void;
 } {
   return createMemoryProfileStore([
-    { unitId: "dance-studio-1", profileType: "dance", createdAt: "2024-01-01" },
-    { unitId: "k12-school-1", profileType: "k12", createdAt: "2024-01-01" },
+    { tenantId: "t1", revision: 0, unitId: "dance-studio-1", profileType: "dance", createdAt: "2024-01-01" },
+    { tenantId: "t1", revision: 0, unitId: "k12-school-1", profileType: "k12", createdAt: "2024-01-01" },
   ]);
 }
 
@@ -286,4 +287,10 @@ export function createTestActionRegistry(): ActionRegistry {
   return createActionRegistry({
     actions: [enrollStudentAction, scheduleClassAction, gradeStudentAction],
   });
+}
+
+/** Explicitly trusted test policy and real handlers for non-capability fixtures. */
+export function createAuthorizedTestPlatform(config: import('../types.js').PlatformConfig) {
+  const handlers = Object.fromEntries((config.actionRegistry?.allActions() ?? []).filter(action => !action.capabilityId).map(action => [action.id, async (_id: string, input: unknown) => input]));
+  return createPlatform({ authorizer: () => true, handlers, ...config });
 }

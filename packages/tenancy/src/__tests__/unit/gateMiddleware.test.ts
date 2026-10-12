@@ -18,8 +18,8 @@ const registry = createModuleRegistry({
 });
 
 const store = createMemoryProfileStore([
-  { unitId: "dance-1", profileType: "dance", createdAt: "2024-01-01" },
-  { unitId: "tutor-1", profileType: "tutoring", createdAt: "2024-01-01" },
+  { tenantId: "t1", revision: 0, unitId: "dance-1", profileType: "dance", createdAt: "2024-01-01" },
+  { tenantId: "t1", revision: 0, unitId: "tutor-1", profileType: "tutoring", createdAt: "2024-01-01" },
 ]);
 
 const resolver = createProfileResolver(registry, store);
@@ -61,5 +61,27 @@ describe("createGateMiddleware", () => {
     const result = await gateCheck(ctx, ["attendance"]);
     expect(result.denied[0]!.reason).toBeTruthy();
     expect(typeof result.denied[0]!.reason).toBe("string");
+  });
+
+  it("captures caller scope and module requirements before an asynchronous binding read", async () => {
+    let finish!: () => void;
+    const pendingResolver = createProfileResolver(registry, {
+      async getBinding(scope) {
+        await new Promise<void>((resolve) => { finish = resolve; });
+        return store.getBinding(scope);
+      },
+    });
+    const ctx = { tenantId: "t1", unitId: "tutor-1" };
+    const requiredModules = ["attendance"];
+    const pending = createGateMiddleware(pendingResolver)(ctx, requiredModules);
+    ctx.tenantId = "other-tenant";
+    ctx.unitId = "dance-1";
+    requiredModules.splice(0, 1, "students");
+    finish();
+    const result = await pending;
+    expect(result.allowed).toBe(false);
+    expect(result.denied).toEqual([
+      expect.objectContaining({ moduleId: "attendance", unitId: "tutor-1", profileType: "tutoring" }),
+    ]);
   });
 });

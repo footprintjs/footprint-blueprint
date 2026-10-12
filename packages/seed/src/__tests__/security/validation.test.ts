@@ -58,7 +58,7 @@ describe("applier error containment", () => {
         if (entry.moduleId === "aaa") throw new Error("DB down");
         return { moduleId: entry.moduleId, status: "success", recordsCreated: 1 };
       },
-    });
+    }, { failureMode: "partial" });
 
     expect(result.status).toBe("partial");
     expect(result.results.find((r) => r.moduleId === "bbb")?.status).toBe("success");

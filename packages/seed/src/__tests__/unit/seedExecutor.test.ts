@@ -55,7 +55,7 @@ describe("executeSeedPlan", () => {
     expect(result.status).toBe("error");
   });
 
-  it("continues after an entry failure", async () => {
+  it("stops before a dependent entry after an entry failure", async () => {
     const applied: string[] = [];
     const applier: SeedApplier = {
       async apply(entry) {
@@ -66,7 +66,7 @@ describe("executeSeedPlan", () => {
     };
 
     await executeSeedPlan(plan, applier);
-    expect(applied).toHaveLength(2); // both executed despite first failure
+    expect(applied).toEqual(["students"]);
   });
 
   it("handles skipped entries", async () => {
@@ -77,7 +77,7 @@ describe("executeSeedPlan", () => {
     };
 
     const result = await executeSeedPlan(plan, skipApplier);
-    expect(result.status).toBe("success"); // skipped is not an error
+    expect(result.status).toBe("partial"); // skipped prerequisites are not acknowledged successes
   });
 
   it("handles empty plan", async () => {

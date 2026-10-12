@@ -1,94 +1,56 @@
 # @footprint/platform
 
-Orchestration layer — single entry point that wires all packages into a cohesive platform instance.
-
-## Why this exists
-
-The lower-level packages (features, tenancy, seed, adapters, actions) are deliberately independent. Each one does one thing well. But using them together requires boilerplate: create a registry, create a profile store, create a resolver, create middleware, create a bridge, create an executor...
-
-This package is the glue. `createPlatform()` takes a configuration object and returns a **Platform** — a single object with everything wired together. It also re-exports all public APIs from every package, so consumers only need one import.
-
-## Usage
+Wires feature definitions, scoped profile resolution, seed planning, action authorization, handlers and adapters.
 
 ```ts
-import {
-  createPlatform,
-  defineModule,
-  defineProfile,
-  createModuleRegistry,
-  createMemoryProfileStore,
-  createTenantContext,
-  createAdapterRegistry,
-  createActionRegistry,
-} from "@footprint/platform";
-
-// 1. Define your domain
-const students = defineModule({ id: "students", name: "Students", domain: "people", description: "..." });
-const dance = defineProfile({ type: "dance", displayName: "Dance", modules: ["students"], roles: ["Owner"] });
-
-// 2. Create registries
-const registry = createModuleRegistry({ modules: [students], profileTypes: [dance] });
-const store = createMemoryProfileStore([
-  { unitId: "studio-1", profileType: "dance", createdAt: "2024-01-01" },
-]);
-
-// 3. Create platform
+const store = createMemoryProfileStore([{
+  tenantId: 'store-a', unitId: 'store-a', revision: 0,
+  profileType: 'retail', createdAt: '2026-10-11T00:00:00Z',
+}]);
 const platform = createPlatform({
-  registry,
-  profileStore: store,
-  adapterRegistry: createAdapterRegistry({ capabilities: [...], adapters: [...], mappings: [...] }),
-  actionRegistry: createActionRegistry({ actions: [...] }),
+  registry, profileStore: store, actionRegistry, adapterRegistry,
+  authorizer: ({ action, context, purpose }) => verifiedPolicy.can(context.userId, action.id, purpose),
+  handlers: { 'publish-content': async (_id, input, context) => publication.publish(input, context) },
+  traceRecorder,
+  onTraceError: error => diagnostics.report(error),
+  resolverOptions: { cacheTtlMs: 30_000, maxCacheEntries: 1000 },
 });
-
-// 4. Use it
-const ctx = createTenantContext({ tenantId: "t1", unitId: "studio-1" });
-
-const setup = await platform.setupUnit(ctx);       // → config + seed plan
-const gate = await platform.gateCheck(ctx, ["attendance"]);  // → allowed/denied
-const t = await platform.getTermResolver(ctx);      // → term resolver function
-const tools = await platform.getAvailableActions(ctx);  // → MCP tool definitions
-const result = await platform.executeAction(ctx, "enroll-student", { name: "Luna" });
+// Construct from verified session/deployment state, not untrusted headers/tool input.
+const ctx = createTenantContext({ tenantId: 'store-a', unitId: 'store-a', userId: session.userId });
+const tools = await platform.getAvailableActions(ctx);
+const result = await platform.executeAction(ctx, 'publish-content', { expectedRevision: 4 });
 ```
 
-## API
+Missing authorization yields no discovered actions and denies execution. Discovery combines module gates, handler/adapter availability and trusted policy. Exact action handlers take precedence over shared capability adapters, allowing different operations to use the correct host implementation. Invalid registry dependencies, handler IDs, action module references or capability mappings fail startup validation.
 
-### `createPlatform(config)`
+Each action call strongly resolves its full tenant/campus/unit binding once, then uses that same resolved configuration for gates and routing. Every platform method captures and freezes tenant/campus/unit and user identity before asynchronous policy/data work, so a mutable caller object cannot mix a previously resolved profile with changed scope. `ProfileStore.getBinding(scope)` must strongly read the complete scope and return matching scope plus a monotonically increasing revision. The memory store supports guarded revision updates; production hosts supply durable transactions/CAS.
 
-| Method | Description |
-|--------|-------------|
-| `resolveUnit(ctx)` | Resolve a unit's full profile configuration |
-| `setupUnit(ctx)` | Resolve config + generate seed plan |
-| `gateCheck(ctx, modules)` | Check if modules are enabled for a unit |
-| `getTermResolver(ctx)` | Get a terminology resolver for a unit's profile |
-| `getAvailableActions(ctx)` | Get MCP tools available for a unit |
-| `executeAction(ctx, actionId, input)` | Execute an action with gate check + tracing |
+| Method | Behavior |
+| --- | --- |
+| `resolveUnit(ctx)` | Resolve scoped profile configuration |
+| `setupUnit(ctx)` | Resolve configuration and generate a seed plan |
+| `gateCheck(ctx,moduleIds)` | Check modules in the resolved profile |
+| `getTermResolver(ctx)` | Resolve profile terminology |
+| `getAvailableActions(ctx)` | Authorized MCP-compatible descriptors with actual implementations |
+| `executeAction(ctx,id,input)` | Module gate, authorization, AJV validation, real Footprint 10 execution |
+| `prepareAction(ctx,id,input)` | Same preflight for a trusted host-owned workflow; returns frozen `{action,context,input}` |
+| `invalidateProfile(scope)` | Invalidate derived configuration for one complete scope |
+| `clearProfileCache()` | Invalidate all derived configurations |
 
-### Configuration
+`prepareAction` is useful when a host already has a Footprint workflow. Execute the returned captured payload with a trusted registered operation; do not treat a stale prepared value as a reusable credential. It does not perform a write, start a transaction or replace final durable permissions/revision checks.
 
-```ts
-type PlatformConfig = {
-  registry: ModuleRegistry;          // Required
-  profileStore: ProfileStore;         // Required
-  adapterRegistry?: AdapterRegistry;  // Optional
-  actionRegistry?: ActionRegistry;    // Optional
-};
-```
+Profile cache options: `cacheTtlMs` defaults to 30 seconds, 0 disables derived caching; `maxCacheEntries` defaults to 1000. Every resolution still strongly reads the binding revision. Invalidations prevent an in-flight older resolution from refilling or returning stale cached configuration. Revision regression or same-revision configuration changes reject resolution. Bindings and caches are isolated by tenant/campus/unit scope.
 
-A platform can start with just features and tenancy (profile resolution + gate checks + terminology). Adapters and actions can be added later without changing existing code.
+Trace persistence is honored. Recorder/diagnostic failures after handler success preserve success. SDK traces contain real execution stages without default customer payloads. Provider failures retain code/status/run ID and nonenumerable cause. Hosts own authentication, CSRF, public error sanitization, provider availability, transaction/idempotency semantics and MCP transport. Exported tool descriptors do not start an MCP server.
 
-## Gate enforcement
+## Shared evidence
 
-`executeAction` enforces module gates automatically:
-1. Looks up the action's `requiredModules`
-2. Checks if all are enabled for the requesting unit's profile
-3. Only executes if all gates pass
-4. Returns `{ status: "error", error: "Action requires disabled modules: ..." }` otherwise
+The prepared 0.3.2 release forwards `evidenceOptions`, `projectEvidenceActor` and
+`projectEvidenceRequest` to the action executor. It re-exports the complete
+receipt/reporting/validation API from `@footprint/actions`. See that package's
+shared evidence guide for privacy defaults, effect phases and bounds.
 
-## Tests
-
-34 tests across 5 files:
-- **Unit**: platform factory, resolveUnit, setupUnit, gateCheck, getTermResolver
-- **Scenario**: full workflow (dance vs K-12), platform without adapters
-- **Property**: deterministic resolution, gate invariants, tool subset invariants
-- **Boundary**: 100 modules + 200 actions, unknown units, unknown actions
-- **Security**: gate enforcement, adapter error containment, state isolation
+Registered handlers can use the optional fourth `EvidenceReporter` argument to
+report actual adapter facts and inner run IDs. Profile/module failures that
+occur before execution do not claim a native recording. This release starts no
+agent or transport and provisions no hosting resources.

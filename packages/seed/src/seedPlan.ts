@@ -1,106 +1,57 @@
-import type { ResolvedProfileConfig } from "@footprint/features";
-import type { SeedPlan, SeedEntry, SeedGenerator } from "./types.js";
+import { immutableValue } from '@footprint/features';
+import type { ResolvedProfileConfig } from '@footprint/features';
+import type { SeedPlan, SeedEntry, SeedGenerator } from './types.js';
 
-/**
- * Generate a seed plan from a resolved profile config.
- *
- * The plan contains one entry per enabled module that has seed data.
- * Entries are ordered by dependency depth (modules with no deps first).
- *
- * @example
- * ```ts
- * const plan = generateSeedPlan(config, "school-1");
- * plan.entries; // [{ moduleId: "students", blueprint: {...}, order: 0 }, ...]
- * ```
- *
- * @param generators - Optional generators to transform blueprints
- */
-export function generateSeedPlan(
-  config: ResolvedProfileConfig,
-  unitId: string,
-  generators?: readonly SeedGenerator[],
-): SeedPlan {
+/** Generate immutable authoring data in dependency order before invoking any generator. */
+export function generateSeedPlan(config: ResolvedProfileConfig, unitId: string, generators: readonly SeedGenerator[] = []): SeedPlan {
+  if (typeof unitId !== 'string' || !unitId.trim()) throw new Error('Seed unitId is required');
   const generatorMap = new Map<string, SeedGenerator>();
-  for (const gen of generators ?? []) {
-    generatorMap.set(gen.moduleId, gen);
+  for (const generator of generators) {
+    if (generatorMap.has(generator.moduleId)) throw new Error(`Duplicate seed generator for ${generator.moduleId}`);
+    generatorMap.set(generator.moduleId, generator);
   }
-
-  // Build dependency depth map for ordering
-  const depthMap = computeDepthMap(config);
-
-  // Create entries from seed blueprints
-  const entries: SeedEntry[] = [];
-  for (const [moduleId, blueprint] of Object.entries(config.seed)) {
-    const depth = depthMap.get(moduleId) ?? 0;
-    const generator = generatorMap.get(moduleId);
-
-    const context = {
-      profileType: config.profileType,
-      unitId,
-      blueprints: config.seed,
-      generated: Object.fromEntries(
-        entries
-          .filter((e) => e.transformed !== undefined)
-          .map((e) => [e.moduleId, e.transformed]),
-      ),
-    };
-
-    const entry: SeedEntry = {
-      moduleId,
-      blueprint,
-      ...(generator ? { transformed: generator.generate(blueprint, context) } : {}),
-      order: depth,
-    };
-
-    entries.push(entry);
-  }
-
-  // Sort by order (lower = first)
-  entries.sort((a, b) => a.order - b.order);
-
-  return Object.freeze({
-    profileType: config.profileType,
-    unitId,
-    entries: Object.freeze(entries.map((e) => Object.freeze(e))),
-    generatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Compute the dependency depth for each module.
- * Modules with no deps = 0, modules depending on depth-0 = 1, etc.
- *
- * Uses a single shared `visiting` set with proper backtracking (delete after
- * recursion) to correctly handle diamond dependencies: A→B→D, A→C→D.
- */
-function computeDepthMap(config: ResolvedProfileConfig): Map<string, number> {
   const depths = new Map<string, number>();
-  const visiting = new Set<string>(); // cycle detection with backtracking
-
-  function getDepth(moduleId: string): number {
-    const cached = depths.get(moduleId);
+  const prerequisites = new Map<string, readonly string[]>();
+  const visiting = new Set<string>();
+  const depth = (id: string): number => {
+    if (!config.enabledModules.has(id)) throw new Error(`Seed prerequisite ${id} is not enabled`);
+    const cached = depths.get(id);
     if (cached !== undefined) return cached;
-
-    if (visiting.has(moduleId)) return 0; // cycle protection
-    visiting.add(moduleId);
-
-    const deps = config.dependencyTree.get(moduleId) ?? [];
-    let depth: number;
-    if (deps.length === 0) {
-      depth = 0;
-    } else {
-      const maxDepth = Math.max(...deps.map((d) => getDepth(d)));
-      depth = maxDepth + 1;
+    if (visiting.has(id)) throw new Error(`Circular seed dependency at ${id}`);
+    visiting.add(id);
+    const deps = config.dependencyTree.get(id) ?? [];
+    const all = new Set<string>();
+    let order = 0;
+    for (const dep of deps) {
+      order = Math.max(order, depth(dep) + 1);
+      all.add(dep);
+      for (const transitive of prerequisites.get(dep) ?? []) all.add(transitive);
     }
-
-    visiting.delete(moduleId); // backtrack
-    depths.set(moduleId, depth);
-    return depth;
+    visiting.delete(id);
+    depths.set(id, order);
+    prerequisites.set(id, Object.freeze([...all]));
+    return order;
+  };
+  for (const id of config.enabledModules) depth(id);
+  const seedIds = Object.keys(config.seed);
+  for (const id of seedIds) if (!config.enabledModules.has(id)) throw new Error(`Seed module ${id} is not enabled`);
+  seedIds.sort((a, b) => (depths.get(a) ?? 0) - (depths.get(b) ?? 0));
+  const seedSet = new Set(seedIds);
+  const blueprints = immutableValue(config.seed);
+  const generated: Record<string, unknown> = Object.create(null);
+  const entries: SeedEntry[] = [];
+  for (const moduleId of seedIds) {
+    const blueprint = blueprints[moduleId];
+    const generator = generatorMap.get(moduleId);
+    const transformed = generator?.generate(blueprint, Object.freeze({ profileType: config.profileType, unitId: unitId.trim(), blueprints, generated: immutableValue(generated) }));
+    const entry = immutableValue({
+      moduleId, blueprint, ...(generator ? { transformed } : {}),
+      order: depths.get(moduleId) ?? 0,
+      requires: (prerequisites.get(moduleId) ?? []).filter((id) => seedSet.has(id)),
+    });
+    entries.push(entry);
+    // Dependent generators see the concrete output (or unchanged blueprint).
+    generated[moduleId] = generator ? entry.transformed : entry.blueprint;
   }
-
-  for (const moduleId of config.enabledModules) {
-    getDepth(moduleId);
-  }
-
-  return depths;
+  return Object.freeze({ profileType: config.profileType, unitId: unitId.trim(), entries: Object.freeze(entries), generatedAt: new Date().toISOString() });
 }

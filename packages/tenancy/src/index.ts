@@ -20,7 +20,7 @@
  *
  * // Set up profile store
  * const store = createMemoryProfileStore([
- *   { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
+ *   { tenantId: "t1", unitId: "school-1", revision: 0, profileType: "dance", createdAt: "2024-01-01" },
  * ]);
  *
  * // Create resolver + middleware
@@ -37,6 +37,7 @@
 // Types
 export type {
   TenantContext,
+  ProfileScope,
   ProfileBinding,
   ProfileStore,
   TenantGateResult,
@@ -58,3 +59,6 @@ export type { GateMiddleware } from "./gateMiddleware.js";
 
 // In-memory store (for testing / simple use)
 export { createMemoryProfileStore } from "./memoryProfileStore.js";
+
+export { profileScopeKey } from "./profileScope.js";
+export type { MemoryProfileStore } from "./memoryProfileStore.js";

@@ -1,6 +1,6 @@
 {
   "name": "@footprint/seed",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Seed data templates and generators per profile type",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,15 +16,41 @@
     "build": "tsc",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@footprint/features": "workspace:*",
-    "footprintjs": "^4.12.2"
+    "footprintjs": "10.0.0"
   },
   "devDependencies": {
-    "fast-check": "^3.23.0",
-    "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3",
+    "@types/node": "24.19.2"
+  },
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/footprintjs/footprint-blueprint.git",
+    "directory": "packages/seed"
+  },
+  "homepage": "https://github.com/footprintjs/footprint-blueprint#readme",
+  "bugs": {
+    "url": "https://github.com/footprintjs/footprint-blueprint/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

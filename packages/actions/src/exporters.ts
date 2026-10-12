@@ -1,4 +1,5 @@
 import type { MCPToolDefinition, SchemaExporter } from "./types.js";
+import { freezeData, inputSchemaForAction } from "./validation.js";
 
 /**
  * Built-in MCP schema exporter.
@@ -11,27 +12,11 @@ export function createMCPExporter(): SchemaExporter<readonly MCPToolDefinition[]
     id: "mcp",
     export(actions) {
       return Object.freeze(actions.map((action) => {
-        const properties: Record<string, Record<string, unknown>> = {};
-        const required: string[] = [];
-
-        for (const param of action.parameters) {
-          properties[param.name] = Object.freeze({
-            type: param.type,
-            description: param.description,
-          });
-          if (param.required) {
-            required.push(param.name);
-          }
-        }
 
         return Object.freeze({
           name: action.id,
           description: action.description,
-          inputSchema: Object.freeze({
-            type: "object" as const,
-            properties: Object.freeze(properties),
-            required: Object.freeze(required),
-          }),
+          inputSchema: freezeData(inputSchemaForAction(action)) as MCPToolDefinition['inputSchema'],
         });
       }));
     },
@@ -49,11 +34,7 @@ export type OpenAPIPathEntry = {
   readonly requestBody: {
     readonly content: {
       readonly "application/json": {
-        readonly schema: {
-          readonly type: "object";
-          readonly properties: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-          readonly required: readonly string[];
-        };
+        readonly schema: MCPToolDefinition['inputSchema'];
       };
     };
   };
@@ -70,18 +51,6 @@ export function createOpenAPIExporter(): SchemaExporter<readonly OpenAPIPathEntr
     id: "openapi",
     export(actions) {
       return Object.freeze(actions.map((action) => {
-        const properties: Record<string, Record<string, unknown>> = {};
-        const required: string[] = [];
-
-        for (const param of action.parameters) {
-          properties[param.name] = Object.freeze({
-            type: param.type,
-            description: param.description,
-          });
-          if (param.required) {
-            required.push(param.name);
-          }
-        }
 
         return Object.freeze({
           operationId: action.id,
@@ -91,11 +60,7 @@ export function createOpenAPIExporter(): SchemaExporter<readonly OpenAPIPathEntr
           requestBody: Object.freeze({
             content: Object.freeze({
               "application/json": Object.freeze({
-                schema: Object.freeze({
-                  type: "object" as const,
-                  properties: Object.freeze(properties),
-                  required: Object.freeze(required),
-                }),
+                schema: freezeData(inputSchemaForAction(action)) as OpenAPIPathEntry['requestBody']['content']['application/json']['schema'],
               }),
             }),
           }),

@@ -12,8 +12,7 @@ describe("boundary: large number of units", () => {
     const registry = createModuleRegistry({ modules: [mod], profileTypes: [profile] });
 
     const bindings = Array.from({ length: 1000 }, (_, i) => ({
-      unitId: `unit-${i}`,
-      profileType: "basic" as const,
+      tenantId: "t1", revision: 0, unitId: `unit-${i}`, profileType: "basic" as const,
       createdAt: "2024-01-01",
     }));
 
@@ -39,7 +38,7 @@ describe("boundary: many required modules in gate check", () => {
     const registry = createModuleRegistry({ modules, profileTypes: [profile] });
 
     const store = createMemoryProfileStore([
-      { unitId: "u1", profileType: "big", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "u1", profileType: "big", createdAt: "2024-01-01" },
     ]);
     const resolver = createProfileResolver(registry, store);
     const gate = createGateMiddleware(resolver);
@@ -59,29 +58,27 @@ describe("boundary: cache behavior", () => {
 
     let callCount = 0;
     const store: import("../../types.js").ProfileStore = {
-      async getBinding(unitId) {
+      async getBinding(scope) {
         callCount++;
-        return { unitId, profileType: "basic", createdAt: "2024-01-01" };
+        return { ...scope, revision: 0, profileType: "basic", createdAt: "2024-01-01" };
       },
     };
 
     const resolver = createProfileResolver(registry, store);
     const ctx = createTenantContext({ tenantId: "t1", unitId: "u1" });
 
-    // 100 resolves should only hit store once
+    // Each resolve strongly reads the revision; only the immutable derivation is cached
     for (let i = 0; i < 100; i++) {
       await resolver.resolve(ctx);
     }
-    expect(callCount).toBe(1);
+    expect(callCount).toBe(100);
   });
 });
 
 describe("boundary: extreme input values", () => {
   it("handles very long tenantId and unitId", () => {
     const longId = "a".repeat(1000);
-    const ctx = createTenantContext({ tenantId: longId, unitId: longId });
-    expect(ctx.tenantId).toBe(longId);
-    expect(ctx.unitId).toBe(longId);
+    expect(() => createTenantContext({ tenantId: longId, unitId: longId })).toThrow("160 characters");
   });
 
   it("handles unicode in tenant context", () => {

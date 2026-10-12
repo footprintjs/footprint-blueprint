@@ -13,17 +13,18 @@
  * A tenant context identifies who is making the request.
  *
  * The hierarchy is: Tenant > Campus > Unit (e.g., School, Store, Clinic).
- * All three levels are optional to support different deployment models:
- * - Single-tenant: only unitId
+ * tenantId and unitId are required; campusId is optional:
+ * - Single-tenant: deployment ID as tenantId + unitId
  * - Multi-tenant flat: tenantId + unitId
  * - Multi-tenant hierarchical: tenantId + campusId + unitId
  */
-export type TenantContext = {
+export type ProfileScope = {
   readonly tenantId: string;
   readonly campusId?: string;
   readonly unitId: string;
-  readonly userId?: string;
 };
+
+export type TenantContext = ProfileScope & { readonly userId?: string };
 
 // ---------------------------------------------------------------------------
 // Profile binding
@@ -35,7 +36,9 @@ export type TenantContext = {
  * This is what gets stored (e.g., in a database) and looked up at request time.
  * It tells the system: "Unit X uses profile Y with these module overrides."
  */
-export type ProfileBinding = {
+export type ProfileBinding = ProfileScope & {
+  /** Monotonically increasing binding revision. Changing configuration must increment it. */
+  readonly revision: number;
   /** The unit this binding belongs to */
   readonly unitId: string;
   /** The profile type (e.g., "dance", "k12", "clothing-store") */
@@ -59,8 +62,8 @@ export type ProfileBinding = {
  * The tenancy package never does IO directly.
  */
 export type ProfileStore = {
-  /** Look up the profile binding for a unit */
-  getBinding(unitId: string): Promise<ProfileBinding | undefined>;
+  /** Strongly read the binding for the complete scope; never use unitId alone. */
+  getBinding(scope: ProfileScope): Promise<ProfileBinding | undefined>;
 };
 
 // ---------------------------------------------------------------------------

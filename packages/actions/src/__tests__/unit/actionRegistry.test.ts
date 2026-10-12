@@ -20,7 +20,7 @@ describe("createActionRegistry", () => {
     const action = makeAction({ id: "a1" });
     const registry = createActionRegistry({ actions: [action] });
 
-    expect(registry.getAction("a1")).toBe(action);
+    expect(registry.getAction("a1")).toEqual(action);
   });
 
   it("returns undefined for unknown action ID", () => {
@@ -35,8 +35,8 @@ describe("createActionRegistry", () => {
     const registry = createActionRegistry({ actions: [a, b] });
 
     expect(registry.allActions()).toHaveLength(2);
-    expect(registry.allActions()).toContain(a);
-    expect(registry.allActions()).toContain(b);
+    expect(registry.allActions()).toContainEqual(a);
+    expect(registry.allActions()).toContainEqual(b);
   });
 
   it("returns frozen allActions array", () => {
@@ -55,8 +55,8 @@ describe("forDomain", () => {
 
     const people = registry.forDomain("people");
     expect(people).toHaveLength(2);
-    expect(people).toContain(a);
-    expect(people).toContain(c);
+    expect(people).toContainEqual(a);
+    expect(people).toContainEqual(c);
   });
 
   it("returns empty array for unknown domain", () => {
@@ -75,8 +75,8 @@ describe("forModule", () => {
 
     const studentActions = registry.forModule("students");
     expect(studentActions).toHaveLength(2);
-    expect(studentActions).toContain(a);
-    expect(studentActions).toContain(b);
+    expect(studentActions).toContainEqual(a);
+    expect(studentActions).toContainEqual(b);
   });
 
   it("returns empty array for unknown module", () => {
@@ -99,7 +99,7 @@ describe("toMCPTools", () => {
     });
     const registry = createActionRegistry({ actions: [action] });
 
-    const tools = registry.toMCPTools(new Set(["students"]));
+    const tools = registry.exportMetadata(new Set(["students"]), createMCPExporter());
     expect(tools).toHaveLength(1);
 
     const tool = tools[0]!;
@@ -117,7 +117,7 @@ describe("toMCPTools", () => {
     const c = makeAction({ id: "c1", requiredModules: ["fees"] });
     const registry = createActionRegistry({ actions: [a, b, c] });
 
-    const tools = registry.toMCPTools(new Set(["students"]));
+    const tools = registry.exportMetadata(new Set(["students"]), createMCPExporter());
     expect(tools).toHaveLength(1);
     expect(tools[0]!.name).toBe("a1");
   });
@@ -126,7 +126,7 @@ describe("toMCPTools", () => {
     const a = makeAction({ id: "a1", requiredModules: [] });
     const registry = createActionRegistry({ actions: [a] });
 
-    const tools = registry.toMCPTools(new Set());
+    const tools = registry.exportMetadata(new Set(), createMCPExporter());
     expect(tools).toHaveLength(1);
   });
 
@@ -137,7 +137,7 @@ describe("toMCPTools", () => {
     });
     const registry = createActionRegistry({ actions: [action] });
 
-    const tools = registry.toMCPTools(new Set());
+    const tools = registry.exportMetadata(new Set(), createMCPExporter());
     expect(Object.isFrozen(tools)).toBe(true);
     expect(Object.isFrozen(tools[0])).toBe(true);
     expect(Object.isFrozen(tools[0]!.inputSchema)).toBe(true);
@@ -160,8 +160,8 @@ describe("exportActions", () => {
     const registry = createActionRegistry({ actions: [action] });
     const enabled = new Set(["students"]);
 
-    const mcpTools = registry.toMCPTools(enabled);
-    const exportedTools = registry.exportActions(enabled, createMCPExporter());
+    const mcpTools = registry.exportMetadata(enabled, createMCPExporter());
+    const exportedTools = registry.exportMetadata(enabled, createMCPExporter());
 
     expect(exportedTools).toHaveLength(mcpTools.length);
     expect(exportedTools[0]!.name).toBe(mcpTools[0]!.name);
@@ -183,7 +183,7 @@ describe("exportActions", () => {
     });
     const registry = createActionRegistry({ actions: [action] });
 
-    const entries = registry.exportActions(new Set(), createOpenAPIExporter());
+    const entries = registry.exportMetadata(new Set(), createOpenAPIExporter());
 
     expect(entries).toHaveLength(1);
     const entry = entries[0]!;
@@ -211,7 +211,7 @@ describe("exportActions", () => {
       },
     };
 
-    const result = registry.exportActions(new Set(), customExporter);
+    const result = registry.exportMetadata(new Set(), customExporter);
     expect(result).toEqual(["test:a1"]);
   });
 });

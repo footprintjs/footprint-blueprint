@@ -24,7 +24,7 @@ const ctx: ActionExecutionContext = {
 describe("createActionExecutor", () => {
   it("returns error for unknown action", async () => {
     const registry = createActionRegistry({ actions: [] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("nope", {}, ctx);
 
@@ -34,9 +34,9 @@ describe("createActionExecutor", () => {
   });
 
   it("executes action via handler when no capabilityId", async () => {
-    const action = makeAction({ id: "greet" });
+    const action = makeAction({ id: "greet", parameters: [{name:"name",type:"string",required:true,description:"Name"}] });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute(
       "greet",
@@ -53,7 +53,7 @@ describe("createActionExecutor", () => {
   it("produces trace on success", async () => {
     const action = makeAction({ id: "traced" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("traced", {}, ctx, async () => "ok");
 
@@ -67,7 +67,7 @@ describe("createActionExecutor", () => {
   it("captures handler errors", async () => {
     const action = makeAction({ id: "fail" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("fail", {}, ctx, async () => {
       throw new Error("handler broke");
@@ -81,7 +81,7 @@ describe("createActionExecutor", () => {
   it("captures non-Error throws", async () => {
     const action = makeAction({ id: "fail2" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("fail2", {}, ctx, async () => {
       throw "string error";
@@ -94,29 +94,29 @@ describe("createActionExecutor", () => {
   it("returns error when no handler and no capabilityId", async () => {
     const action = makeAction({ id: "nohandler" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("nohandler", {}, ctx);
 
     expect(result.status).toBe("error");
-    expect(result.error).toContain("No handler provided");
+    expect(result.errorCode).toBe("ACTION_IMPLEMENTATION_UNAVAILABLE");
   });
 
   it("returns error when capabilityId set but no bridge", async () => {
     const action = makeAction({ id: "cap-action", capabilityId: "some-cap" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("cap-action", {}, ctx);
 
     expect(result.status).toBe("error");
-    expect(result.error).toContain("service bridge");
+    expect(result.errorCode).toBe("ACTION_IMPLEMENTATION_UNAVAILABLE");
   });
 
   it("returns frozen results", async () => {
     const action = makeAction({ id: "frozen" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute("frozen", {}, ctx, async () => "ok");
 
@@ -127,7 +127,7 @@ describe("createActionExecutor", () => {
 
 describe("capability-based execution", () => {
   it("delegates to service bridge when capabilityId is set", async () => {
-    const action = makeAction({ id: "schedule", capabilityId: "schedule-class" });
+    const action = makeAction({ id: "schedule", capabilityId: "schedule-class", parameters: [{name:"classId",type:"string",required:true,description:"Class ID"}] });
     const registry = createActionRegistry({ actions: [action] });
 
     const mockBridge: ServiceBridge = {
@@ -144,7 +144,7 @@ describe("capability-based execution", () => {
       availableCapabilities: () => [],
     };
 
-    const executor = createActionExecutor(registry, mockBridge);
+    const executor = createActionExecutor(registry, mockBridge, { authorizer: () => true });
     const result = await executor.execute("schedule", { classId: "c1" }, ctx);
 
     expect(result.status).toBe("success");
@@ -169,7 +169,7 @@ describe("capability-based execution", () => {
       availableCapabilities: () => [],
     };
 
-    const executor = createActionExecutor(registry, mockBridge);
+    const executor = createActionExecutor(registry, mockBridge, { authorizer: () => true });
     const result = await executor.execute("bad-cap", {}, ctx);
 
     expect(result.status).toBe("error");

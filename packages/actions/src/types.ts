@@ -7,6 +7,8 @@
  * All types are plain data — no classes, no IO, no side effects.
  */
 
+import type { EvidenceReporter, ExecutionEvidence } from './evidence.js';
+
 // ---------------------------------------------------------------------------
 // Action parameter
 // ---------------------------------------------------------------------------
@@ -16,11 +18,13 @@ export type ActionParameter = {
   /** Parameter name */
   readonly name: string;
   /** Parameter type */
-  readonly type: "string" | "number" | "boolean" | "object";
+  readonly type: "string" | "number" | "integer" | "boolean" | "object" | "array";
   /** Whether this parameter is required */
   readonly required: boolean;
   /** Human-readable description */
   readonly description: string;
+  /** Additional constraints; type and description remain canonical. */
+  readonly schema?: Readonly<Record<string, unknown>>;
 };
 
 // ---------------------------------------------------------------------------
@@ -45,6 +49,10 @@ export type ActionDefinition = {
   readonly requiredModules: readonly string[];
   /** If set, this action delegates to the service bridge capability */
   readonly capabilityId?: string;
+  /** Strict draft-07 JSON Schema. Derived from parameters when omitted. */
+  readonly inputSchema?: Readonly<Record<string, unknown>>;
+  /** Permission declarations inspected by the injected trusted authorizer. */
+  readonly requiredPermissions?: readonly string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -61,6 +69,8 @@ export type ActionTrace = {
   readonly profileType: string;
   /** Unit ID (school/campus/tenant) */
   readonly unitId: string;
+  readonly tenantId?: string;
+  readonly campusId?: string;
   /** When execution started */
   readonly startedAt: number;
   /** When execution completed */
@@ -75,7 +85,7 @@ export type ActionTrace = {
  * Complete execution trace captured from a flow run.
  * Contains everything needed to replay, visualize, and debug the execution.
  * The shape is defined by the execution engine (footprintjs) — this type
- * is intentionally loosely typed so the blueprint doesn't depend on footprintjs.
+ * contains SDK-native stage snapshots; private business payloads are omitted.
  */
 export type ExecutionTrace = {
   /** Unique run identifier */
@@ -104,6 +114,10 @@ export type ExecutionTrace = {
   readonly narrative?: readonly string[];
   /** Structured narrative entries */
   readonly narrativeEntries?: readonly unknown[];
+  readonly runtime?: { readonly library: "footprintjs"; readonly version: "10.0.0" };
+  readonly stageMetrics?: readonly { readonly stageName: string; readonly durationMs: number }[];
+  /** Shared evidence reported by trusted application ports, separate from SDK state. */
+  readonly evidence?: ExecutionEvidence;
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +134,8 @@ export type TraceRecordContext = {
   readonly profileType: string;
   /** Unit ID that executed the action */
   readonly unitId: string;
+  readonly tenantId?: string;
+  readonly campusId?: string;
 };
 
 /**
@@ -151,12 +167,19 @@ export type ActionResult = {
   readonly result?: unknown;
   /** Error message on failure */
   readonly error?: string;
+  readonly errorCode?: string;
+  readonly httpStatus?: number;
+  readonly traceRunId?: string;
+  /** Original provider failure; nonenumerable so it cannot leak through JSON. */
+  readonly cause?: unknown;
   /** How long execution took in milliseconds */
   readonly duration: number;
   /** Execution trace for observability */
   readonly trace?: ActionTrace;
   /** Full execution trace (when available from flow execution) */
   readonly executionTrace?: ExecutionTrace;
+  /** The same immutable receipt attached to executionTrace, when available. */
+  readonly evidence?: ExecutionEvidence;
 };
 
 // ---------------------------------------------------------------------------
@@ -167,7 +190,8 @@ export type ActionResult = {
  * An MCP-compatible tool definition.
  *
  * This matches the Model Context Protocol tool schema so that actions
- * can be exposed directly to LLMs.
+ * can be exposed by an application-provided MCP transport. These descriptors
+ * do not start a server or grant authorization.
  */
 export type MCPToolDefinition = {
   /** Tool name (derived from action ID) */
@@ -177,8 +201,9 @@ export type MCPToolDefinition = {
   /** JSON Schema for the tool's input */
   readonly inputSchema: {
     readonly type: "object";
-    readonly properties: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-    readonly required: readonly string[];
+    readonly properties?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+    readonly required?: readonly string[];
+    readonly [keyword: string]: unknown;
   };
 };
 
@@ -190,6 +215,8 @@ export type MCPToolDefinition = {
 export type ActionExecutionContext = {
   readonly profileType: string;
   readonly unitId: string;
+  readonly tenantId?: string;
+  readonly campusId?: string;
   readonly userId?: string;
   readonly meta?: Readonly<Record<string, unknown>>;
 };
@@ -203,6 +230,8 @@ export type ActionHandler = (
   actionId: string,
   input: unknown,
   context: ActionExecutionContext,
+  /** Request-local reporting port. Never supplied through tool input or context.meta. */
+  evidence?: EvidenceReporter,
 ) => Promise<unknown>;
 
 // ---------------------------------------------------------------------------
@@ -220,4 +249,18 @@ export type SchemaExporter<T = unknown> = {
   readonly id: string;
   /** Export a list of actions into the target format */
   export(actions: readonly ActionDefinition[]): T;
+};
+
+/** This callback belongs to trusted application code, never a tool input. */
+export type ActionAuthorizer = (request: {
+  readonly action: ActionDefinition;
+  readonly context: ActionExecutionContext;
+  readonly purpose: "execute" | "discover";
+}) => boolean | Promise<boolean>;
+export type ActionHandlerRegistry = Readonly<Record<string, ActionHandler>>;
+export type ActionDiscoveryContext = {
+  readonly enabledModules: ReadonlySet<string>;
+  readonly context: ActionExecutionContext;
+  readonly authorizer: ActionAuthorizer;
+  readonly hasImplementation: (action: ActionDefinition) => boolean;
 };

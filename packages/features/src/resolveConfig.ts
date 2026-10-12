@@ -1,4 +1,5 @@
-import type { ModuleDefinition, ResolvedProfileConfig, ValidationError } from "./types.js";
+import { immutableMap, immutableSet, immutableValue } from "./immutable.js";
+import type { ModuleDefinition, ResolvedProfileConfig } from "./types.js";
 import type { ModuleRegistry } from "./moduleRegistry.js";
 import { resolveTransitiveDependencies, buildDependencyTree } from "./dependencyGraph.js";
 import { resolveTerminology } from "./terminology.js";
@@ -13,10 +14,10 @@ import { resolveTerminology } from "./terminology.js";
  * - Merged roles
  * - Seed data blueprints
  * - The full dependency tree
- * - Warnings for any issues encountered (e.g., unknown modules skipped)
+ * - No enabled configuration is returned for an invalid dependency graph
  *
  * Throws on circular dependencies (unrecoverable).
- * Skips unknown modules and surfaces them as warnings.
+ * Rejects unknown profiles and any missing or circular prerequisite.
  *
  * @param moduleOverrides - Optional list of module IDs to use instead of the
  *   profile's defaults. Useful when a unit has customized its modules.
@@ -27,6 +28,7 @@ export function resolveProfileConfig(
   moduleOverrides?: readonly string[]
 ): ResolvedProfileConfig {
   const profileTypeDef = registry.getProfile(profileType);
+  if (!profileTypeDef) throw new Error(`Unknown profile: "${profileType}"`);
 
   // Determine which modules to enable
   const requestedModules = moduleOverrides
@@ -34,25 +36,15 @@ export function resolveProfileConfig(
     ?? [];
 
   if (requestedModules.length === 0) {
-    return emptyConfig(profileType);
+    return emptyConfig(profileType, profileTypeDef.roles);
   }
 
   // Resolve transitive dependencies
   const allModules = registry.getAllModules();
   const { resolved, errors } = resolveTransitiveDependencies(requestedModules, allModules);
 
-  const warnings: ValidationError[] = [];
-
   if (errors.length > 0) {
-    for (const err of errors) {
-      if (err.type === "circular_dependency") {
-        throw new Error(err.message);
-      }
-      if (err.type === "unknown_module") {
-        resolved.delete(err.moduleId);
-        warnings.push(err);
-      }
-    }
+    throw new Error(`Invalid profile "${profileType}": ${errors.map((error) => error.message).join('; ')}`);
   }
 
   // Build enabled module map
@@ -93,27 +85,27 @@ export function resolveProfileConfig(
   // Build dependency tree
   const dependencyTree = buildDependencyTree(resolved, allModules);
 
-  return {
+  return Object.freeze({
     profileType,
-    enabledModules: resolved,
-    modules: enabledModuleMap,
-    terminology,
+    enabledModules: immutableSet(resolved),
+    modules: immutableMap(enabledModuleMap),
+    terminology: immutableValue(terminology),
     roles: Object.freeze(Array.from(roleSet)),
-    seed: Object.freeze(seed),
+    seed: immutableValue(seed),
     dependencyTree,
-    warnings: Object.freeze(warnings),
-  };
+    warnings: Object.freeze([]),
+  });
 }
 
-function emptyConfig(profileType: string): ResolvedProfileConfig {
-  return {
+function emptyConfig(profileType: string, roles: readonly string[]): ResolvedProfileConfig {
+  return Object.freeze({
     profileType,
-    enabledModules: new Set(),
-    modules: new Map(),
-    terminology: {},
-    roles: [],
-    seed: {},
-    dependencyTree: new Map(),
-    warnings: [],
-  };
+    enabledModules: immutableSet<string>([]),
+    modules: immutableMap<string, ModuleDefinition>([]),
+    terminology: immutableValue({}),
+    roles: Object.freeze([...roles]),
+    seed: immutableValue({}),
+    dependencyTree: immutableMap<string, readonly string[]>([]),
+    warnings: Object.freeze([]),
+  });
 }

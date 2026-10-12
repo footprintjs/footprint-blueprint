@@ -1,61 +1,34 @@
 # @footprint/seed
 
-Seed data templates and generators per profile type.
+Generate dependency-ordered initial data and apply it through an injected `SeedApplier`. The package supplies plans and explicit outcomes; the host supplies scoped data access, authorization, and persistence.
 
-## Why this exists
+## Generate a plan
 
-When a new unit is created (a school, store, clinic), it needs initial data — grade structures, attendance statuses, fee models, product categories. Different profile types need different seed data.
-
-Without a system, onboarding code becomes a mess of profile-specific if-statements with no consistent ordering or error handling.
-
-`@footprint/seed` solves this by generating a **seed plan** from the resolved config. The plan describes what data to create, in what order (respecting module dependencies), with optional generators that transform raw blueprints into concrete data. The consumer applies the plan using their own data access layer.
-
-This is Layer 3 of the [footprint-blueprint](../../) framework. It depends on `@footprint/features` (Layer 1).
-
-## What it does
-
-```
-ResolvedProfileConfig
-  → generateSeedPlan(config, unitId, generators?)
-  → SeedPlan { entries: [{ moduleId, blueprint, transformed?, order }] }
-  → executeSeedPlan(plan, applier)
-  → SeedExecutionResult { status, results, duration }
+```ts
+const config = resolveProfileConfig(registry, "fashion");
+const plan = generateSeedPlan(config, "store-1", generators);
 ```
 
-1. **Plan generation** — one entry per module with seed data, ordered by dependency depth
-2. **Generators** — optional transforms that expand blueprints into concrete data
-3. **Execution** — sequential apply with error containment (one failure doesn't stop others)
+Generation sorts modules before calling any generator. A dependent generator sees previously captured prerequisite data through `context.generated`; this includes untransformed prerequisite blueprints. Each entry includes transitive `requires` that have seed entries, including prerequisites reached through modules without seed data. Cycles, disabled prerequisites, duplicate generators, and unknown seed modules are rejected.
 
-## Quick start
+Plans, blueprints, generated output, and context data are immutable snapshots of plain data. Generators must return plain objects/arrays/primitive values rather than provider instances. Bind the applier to the complete authenticated tenant/campus/unit scope; a plan's unit ID alone is not an authorization boundary.
 
-```typescript
-import { resolveProfileConfig } from "@footprint/features";
-import { generateSeedPlan, executeSeedPlan } from "@footprint/seed";
+## Apply a plan
 
-const config = resolveProfileConfig(registry, "dance");
-const plan = generateSeedPlan(config, "school-1");
-
-// Apply with your own adapter
-const result = await executeSeedPlan(plan, {
-  async apply(entry, ctx) {
-    await db.insert(entry.moduleId, entry.transformed ?? entry.blueprint);
-    return { moduleId: entry.moduleId, status: "success", recordsCreated: 1 };
-  },
-});
+```ts
+const result = await executeSeedPlan(plan, scopedApplier); // default failureMode: "stop"
+const partial = await executeSeedPlan(plan, scopedApplier, { failureMode: "partial" });
 ```
 
-## Testing
+The default stops all later writes after the first `error` or `skipped` outcome. Later entries receive explicit skipped reasons. In partial mode, independent branches continue, but entries whose prerequisites did not succeed are skipped. If an adapter verifies an existing seed record as correct, return `success` with `recordsCreated: 0`; `skipped` is not a successful prerequisite receipt.
 
-36 tests across 5 categories:
+Receipts must identify the entry that was applied. Invalid or throwing receipts are reported as failures. An invalid or reordered plan is rejected before any adapter write.
 
-| Category | What it verifies |
-|----------|-----------------|
-| **Unit** (16) | Plan generation, ordering, generators, executor status logic |
-| **Scenario** (8) | K-12 vs dance school setup, full generate+transform+apply flow |
-| **Property** (3) | Entries subset of enabled modules, frozen plans, ordering invariant |
-| **Boundary** (3) | 100 modules, 20-level deep chains, async timing |
-| **Security** (6) | Immutability, generator error propagation, applier error containment |
+**Execution is not atomic.** An earlier successful write remains persisted if a later entry fails; the result reports partial completion. This package does not roll back storage, compare-and-swap publication pointers, or publish a public storefront snapshot. Use the domain's transaction/publication service for those operations. Apply seed data to authoring state and publish through the guarded storefront engine afterward.
 
-```bash
-pnpm test
-```
+## Breaking changes from 0.1
+
+- `SeedEntry.requires` is required for manually constructed plans.
+- Generators run in dependency order before transformation.
+- Execution stops after failure by default; partial continuation requires an explicit option.
+- A dependent seed is never applied after a failed or skipped prerequisite.

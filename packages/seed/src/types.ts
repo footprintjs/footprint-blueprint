@@ -38,6 +38,8 @@ export type SeedEntry = {
   readonly transformed?: unknown;
   /** Execution order (lower = first) */
   readonly order: number;
+  /** Transitive prerequisite modules that have entries in this plan. */
+  readonly requires: readonly string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -93,6 +95,12 @@ export type SeedApplyResult = {
   readonly status: "success" | "skipped" | "error";
   readonly recordsCreated?: number;
   readonly error?: string;
+  readonly reason?: string;
+};
+
+export type SeedExecutionOptions = {
+  /** Default stop: no subsequent write after a failure. Partial continues independent branches only. */
+  readonly failureMode?: "stop" | "partial";
 };
 
 // ---------------------------------------------------------------------------

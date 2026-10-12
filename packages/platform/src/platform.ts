@@ -1,138 +1,75 @@
-/**
- * Platform factory — creates a fully wired platform instance.
- *
- * This is the main orchestration function that ties together all
- * packages: features, tenancy, seed, adapters, and actions.
- */
-
-import { createTermResolver } from "@footprint/features";
-import {
-  createProfileResolver,
-  createGateMiddleware,
-} from "@footprint/tenancy";
-import type { TenantContext, GateMiddlewareResult } from "@footprint/tenancy";
-import { generateSeedPlan } from "@footprint/seed";
-import { createServiceBridge } from "@footprint/adapters";
-import type { ServiceBridge } from "@footprint/adapters";
-import { createActionExecutor } from "@footprint/actions";
-import type { ActionResult, MCPToolDefinition } from "@footprint/actions";
-import type { Platform, PlatformConfig, UnitSetupResult } from "./types.js";
-
-/**
- * Create a fully configured platform instance.
- *
- * @example
- * ```ts
- * const platform = createPlatform({
- *   registry,
- *   profileStore,
- *   adapterRegistry,
- *   actionRegistry,
- * });
- *
- * const ctx = createTenantContext({ tenantId: "t1", unitId: "school-1" });
- * const setup = await platform.setupUnit(ctx);
- * ```
- */
+import { createTermResolver, immutableValue } from '@footprint/features';
+import { createProfileResolver, createGateMiddleware, createTenantContext } from '@footprint/tenancy';
+import type { TenantContext } from '@footprint/tenancy';
+import { generateSeedPlan } from '@footprint/seed';
+import { createServiceBridge } from '@footprint/adapters';
+import { createActionExecutor, ActionAccessError, validateActionInput } from '@footprint/actions';
+import type { ActionDefinition, ActionExecutionContext } from '@footprint/actions';
+import type { Platform, PlatformConfig, PreparedAction } from './types.js';
+/** Wires immutable definitions to trusted app ports; every request resolves once. */
 export function createPlatform(config: PlatformConfig): Platform {
-  const resolver = createProfileResolver(config.registry, config.profileStore);
-  const gateMiddleware = createGateMiddleware(resolver);
-
-  // Service bridge is only created if an adapter registry is provided
-  let bridge: ServiceBridge | undefined;
-  if (config.adapterRegistry) {
-    bridge = createServiceBridge(config.adapterRegistry);
+  const registry = config.registry;
+  const actions = config.actionRegistry;
+  const handlers = Object.freeze({ ...config.handlers });
+  const authorizer = config.authorizer;
+  const validation = registry.validate();
+  if (validation.length) throw new Error(`Invalid module registry: ${JSON.stringify(validation)}`);
+  for (const id of Object.keys(handlers)) if (!actions?.getAction(id) || typeof handlers[id] !== 'function') throw new Error(`Invalid handler registration: ${id}`);
+  for (const action of actions?.allActions() ?? []) {
+    for (const id of action.requiredModules) if (!registry.getModule(id)) throw new Error(`Action "${action.id}" references unknown module "${id}"`);
+    if (action.capabilityId && config.adapterRegistry && !config.adapterRegistry.getCapability(action.capabilityId)) throw new Error(`Action "${action.id}" references unknown capability "${action.capabilityId}"`);
   }
-
-  // Action executor delegates to the bridge for capability-based actions
-  const executor = config.actionRegistry
-    ? createActionExecutor(config.actionRegistry, bridge)
-    : undefined;
-
-  return {
-    async resolveUnit(ctx: TenantContext): Promise<UnitSetupResult> {
-      const profileConfig = await resolver.resolve(ctx);
-      return {
-        unitId: ctx.unitId,
-        profileType: profileConfig.profileType,
-        config: profileConfig,
-      };
-    },
-
-    async setupUnit(ctx: TenantContext): Promise<UnitSetupResult> {
-      const profileConfig = await resolver.resolve(ctx);
-      const seedPlan = generateSeedPlan(profileConfig, ctx.unitId);
-      return {
-        unitId: ctx.unitId,
-        profileType: profileConfig.profileType,
-        config: profileConfig,
-        seedPlan,
-      };
-    },
-
-    async gateCheck(
-      ctx: TenantContext,
-      requiredModules: readonly string[],
-    ): Promise<GateMiddlewareResult> {
-      return gateMiddleware(ctx, requiredModules);
-    },
-
-    async getTermResolver(ctx: TenantContext): Promise<(key: string) => string> {
-      const profileConfig = await resolver.resolve(ctx);
-      return createTermResolver(profileConfig.terminology);
-    },
-
-    async getAvailableActions(ctx: TenantContext): Promise<readonly MCPToolDefinition[]> {
-      if (!config.actionRegistry) {
-        return [];
-      }
-      const profileConfig = await resolver.resolve(ctx);
-      return config.actionRegistry.toMCPTools(profileConfig.enabledModules);
-    },
-
-    async executeAction(
-      ctx: TenantContext,
-      actionId: string,
-      input: unknown,
-    ): Promise<ActionResult> {
-      if (!executor || !config.actionRegistry) {
-        return Object.freeze({
-          actionId,
-          status: "error" as const,
-          error: "No action registry configured",
-          duration: 0,
-        });
-      }
-
-      const action = config.actionRegistry.getAction(actionId);
-      if (!action) {
-        return Object.freeze({
-          actionId,
-          status: "error" as const,
-          error: `Unknown action: "${actionId}"`,
-          duration: 0,
-        });
-      }
-
-      // Resolve once, reuse for gate check and execution context
-      const profileConfig = await resolver.resolve(ctx);
-
-      const gateResult = await gateMiddleware(ctx, action.requiredModules);
-      if (!gateResult.allowed) {
-        const deniedModules = gateResult.denied.map((d) => d.moduleId).join(", ");
-        return Object.freeze({
-          actionId,
-          status: "error" as const,
-          error: `Action requires disabled modules: ${deniedModules}`,
-          duration: 0,
-        });
-      }
-
-      return executor.execute(actionId, input, {
-        profileType: profileConfig.profileType,
-        unitId: ctx.unitId,
-        userId: ctx.userId,
-      });
-    },
+  const resolver = createProfileResolver(registry, config.profileStore, config.resolverOptions);
+  const gateMiddleware = createGateMiddleware(resolver);
+  const bridge = config.adapterRegistry ? createServiceBridge(config.adapterRegistry) : undefined;
+  const executor = actions ? createActionExecutor(actions, bridge, {
+    authorizer, handlers, traceRecorder: config.traceRecorder, onTraceError: config.onTraceError,
+    evidenceOptions: config.evidenceOptions,
+    projectEvidenceActor: config.projectEvidenceActor,
+    projectEvidenceRequest: config.projectEvidenceRequest,
+  }) : undefined;
+  const hasImplementation = (action: ActionDefinition, profileType: string) => Object.hasOwn(handlers, action.id) || Boolean(action.capabilityId && bridge?.hasAdapter(action.capabilityId, profileType));
+  const resolveAction = async (suppliedContext: TenantContext, actionId: string) => {
+    const ctx = createTenantContext(suppliedContext);
+    const action = actions?.getAction(actionId);
+    if (!action) throw new ActionAccessError('ACTION_UNKNOWN', `Unknown action: "${actionId}"`, 404);
+    const resolved = await resolver.resolve(ctx);
+    if (!action.requiredModules.every(id => resolved.enabledModules.has(id))) throw new ActionAccessError('ACTION_MODULE_DISABLED', 'Action requires disabled modules');
+    const context: ActionExecutionContext = immutableValue({ tenantId: ctx.tenantId, ...(ctx.campusId ? { campusId: ctx.campusId } : {}), unitId: ctx.unitId, ...(ctx.userId ? { userId: ctx.userId } : {}), profileType: resolved.profileType });
+    if (!hasImplementation(action, resolved.profileType)) throw new ActionAccessError('ACTION_IMPLEMENTATION_UNAVAILABLE', 'Action implementation is unavailable', 503);
+    return { action, context };
   };
+  return Object.freeze({
+    async resolveUnit(suppliedContext) { const ctx = createTenantContext(suppliedContext); const resolved = await resolver.resolve(ctx); return Object.freeze({ unitId: ctx.unitId, profileType: resolved.profileType, config: resolved }); },
+    async setupUnit(suppliedContext) { const ctx = createTenantContext(suppliedContext); const resolved = await resolver.resolve(ctx); return Object.freeze({ unitId: ctx.unitId, profileType: resolved.profileType, config: resolved, seedPlan: generateSeedPlan(resolved, ctx.unitId) }); },
+    async gateCheck(suppliedContext, requiredModules) { const ctx = createTenantContext(suppliedContext); return gateMiddleware(ctx, Object.freeze([...requiredModules])); },
+    async getTermResolver(suppliedContext) { const ctx = createTenantContext(suppliedContext); return createTermResolver((await resolver.resolve(ctx)).terminology); },
+    async getAvailableActions(suppliedContext) {
+      const ctx = createTenantContext(suppliedContext);
+      if (!actions || !authorizer) return Object.freeze([]);
+      const resolved = await resolver.resolve(ctx);
+      const context: ActionExecutionContext = immutableValue({ tenantId: ctx.tenantId, ...(ctx.campusId ? { campusId: ctx.campusId } : {}), unitId: ctx.unitId, ...(ctx.userId ? { userId: ctx.userId } : {}), profileType: resolved.profileType });
+      return actions.toMCPTools({ enabledModules: resolved.enabledModules, context, authorizer, hasImplementation: action => hasImplementation(action, resolved.profileType) });
+    },
+    async prepareAction(ctx, actionId, input): Promise<PreparedAction> {
+      const { action, context } = await resolveAction(ctx, actionId);
+      if (!authorizer || await authorizer({ action, context, purpose: 'execute' }) !== true) throw new ActionAccessError('ACTION_FORBIDDEN', 'Action is not authorized');
+      const captured = immutableValue(input);
+      validateActionInput(action, captured);
+      return Object.freeze({ action, context, input: captured });
+    },
+    async executeAction(ctx, actionId, input) {
+      try {
+        const { context } = await resolveAction(ctx, actionId);
+        return await executor!.execute(actionId, input, context);
+      } catch (cause) {
+        const details = cause && typeof cause === 'object' ? cause as Record<string, unknown> : {};
+        const result = { actionId, status: 'error' as const, error: cause instanceof Error ? cause.message : 'Action execution rejected', errorCode: typeof details.code === 'string' ? details.code : 'ACTION_EXECUTION_FAILED', httpStatus: typeof details.status === 'number' ? details.status : 500, duration: 0 };
+        Object.defineProperty(result, 'cause', { value: cause, enumerable: false });
+        return Object.freeze(result);
+      }
+    },
+    invalidateProfile: resolver.invalidate,
+    clearProfileCache: resolver.clearCache,
+  });
 }

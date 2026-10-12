@@ -5,7 +5,7 @@ import { createAdapterRegistry, createServiceBridge } from "@footprint/adapters"
 import type { Adapter } from "@footprint/adapters";
 import { createActionRegistry } from "@footprint/actions";
 import type { ActionDefinition } from "@footprint/actions";
-import { createPlatform } from "../../platform.js";
+import { createAuthorizedTestPlatform as createPlatform } from "../fixtures.js";
 
 describe("security: gate enforcement on action execution", () => {
   const basemod = defineModule({ id: "base", name: "Base", domain: "d", description: "d" });
@@ -53,8 +53,8 @@ describe("security: gate enforcement on action execution", () => {
     profileTypes: [profile, fullProfile],
   });
   const store = createMemoryProfileStore([
-    { unitId: "limited-unit", profileType: "limited", createdAt: "2024-01-01" },
-    { unitId: "full-unit", profileType: "full", createdAt: "2024-01-01" },
+    { tenantId: "t1", revision: 0, unitId: "limited-unit", profileType: "limited", createdAt: "2024-01-01" },
+    { tenantId: "t1", revision: 0, unitId: "full-unit", profileType: "full", createdAt: "2024-01-01" },
   ]);
 
   const platform = createPlatform({
@@ -111,7 +111,7 @@ describe("security: adapter error containment through platform", () => {
     const platform = createPlatform({
       registry: createModuleRegistry({ modules: [mod], profileTypes: [profile] }),
       profileStore: createMemoryProfileStore([
-        { unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
+        { tenantId: "t1", revision: 0, unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
       ]),
       adapterRegistry,
       actionRegistry: createActionRegistry({ actions: [action] }),
@@ -130,7 +130,7 @@ describe("security: platform does not expose internal state", () => {
     const profile = defineProfile({ type: "p", displayName: "P", modules: ["m"], roles: ["r"] });
     const registry = createModuleRegistry({ modules: [mod], profileTypes: [profile] });
     const store = createMemoryProfileStore([
-      { unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
     ]);
 
     const platform = createPlatform({ registry, profileStore: store });

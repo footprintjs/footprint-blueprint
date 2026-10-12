@@ -1,98 +1,90 @@
-import type {
-  ModuleRegistry,
-  ResolvedProfileConfig,
-} from "@footprint/features";
-import { resolveProfileConfig } from "@footprint/features";
-import type { ProfileBinding, ProfileStore, TenantContext } from "./types.js";
-
-/**
- * A profile resolver ties the tenant context to the feature system.
- *
- * Given a tenant context, it:
- * 1. Looks up the profile binding (via ProfileStore)
- * 2. Resolves the full config (via @footprint/features)
- * 3. Caches the result for the request lifetime
- *
- * @example
- * ```ts
- * const resolver = createProfileResolver(registry, store);
- * const config = await resolver.resolve(tenantCtx);
- * config.enabledModules; // Set of enabled module IDs
- * config.terminology;    // Resolved labels
- * ```
- */
+import type { ModuleRegistry, ResolvedProfileConfig } from '@footprint/features';
+import { resolveProfileConfig } from '@footprint/features';
+import { captureProfileBinding, normalizedProfileScope, profileScopeKey } from './profileScope.js';
+import type { ProfileBinding, ProfileScope, ProfileStore, TenantContext } from './types.js';
 
 export type ProfileResolverOptions = {
-  /** Cache TTL in milliseconds. 0 = no caching. Default: 0 (no TTL, manual clearCache). */
+  /** Cached derivations only: every resolution still strongly reads the binding revision. Default 30s; 0 disables caching. */
   cacheTtlMs?: number;
+  /** Bounded LRU capacity, default 1000. */
+  maxCacheEntries?: number;
+  now?: () => number;
 };
-
 export type ProfileResolver = {
-  /** Resolve the full profile config for a tenant context */
   resolve(ctx: TenantContext): Promise<ResolvedProfileConfig>;
-  /** Look up just the binding (no resolution) */
-  getBinding(ctx: TenantContext): Promise<ProfileBinding | undefined>;
-  /** Clear the cache */
+  getBinding(ctx: ProfileScope): Promise<ProfileBinding | undefined>;
+  invalidate(scope: ProfileScope): void;
   clearCache(): void;
 };
+type CacheEntry = { config: ResolvedProfileConfig; revision: number; fingerprint: string; expiresAt: number };
+type PendingScope = { generation: number; pending: number };
 
-type CacheEntry = {
-  config: ResolvedProfileConfig;
-  expiresAt: number;
-};
-
-/**
- * Create a profile resolver.
- *
- * The resolver caches resolved configs by unitId. Cache behavior:
- * - No options / cacheTtlMs=0: cached until clearCache() is called manually
- * - cacheTtlMs > 0: entries expire after the TTL and are re-resolved
- *
- * For per-request usage, create a new resolver per request or call clearCache().
- * For long-lived server usage, set a TTL so binding changes are picked up.
- */
-export function createProfileResolver(
-  registry: ModuleRegistry,
-  store: ProfileStore,
-  options?: ProfileResolverOptions,
-): ProfileResolver {
+/** Scope isolation, strongly read revision checks, and bounded cached derivations. */
+export function createProfileResolver(registry: ModuleRegistry, store: ProfileStore, options: ProfileResolverOptions = {}): ProfileResolver {
+  const ttl = options.cacheTtlMs ?? 30_000;
+  const maxEntries = options.maxCacheEntries ?? 1000;
+  if (!Number.isSafeInteger(ttl) || ttl < 0 || ttl > 300_000) throw new Error('cacheTtlMs must be an integer from 0 to 300000');
+  if (!Number.isSafeInteger(maxEntries) || maxEntries < 1 || maxEntries > 10_000) throw new Error('maxCacheEntries must be an integer from 1 to 10000');
+  const now = options.now ?? Date.now;
   const cache = new Map<string, CacheEntry>();
-  const ttl = options?.cacheTtlMs ?? 0;
-
+  const pendingScopes = new Map<string, PendingScope>();
+  let generation = 0;
+  const readBinding = async (scope: ProfileScope) => {
+    const binding = await store.getBinding(scope);
+    return binding ? captureProfileBinding(binding, scope) : undefined;
+  };
   return {
-    async resolve(ctx: TenantContext): Promise<ResolvedProfileConfig> {
-      const cached = cache.get(ctx.unitId);
-      if (cached) {
-        if (ttl === 0 || Date.now() < cached.expiresAt) {
-          return cached.config;
+    async resolve(ctx) {
+      const scope = normalizedProfileScope(ctx);
+      const key = profileScopeKey(scope);
+      const pending = pendingScopes.get(key) ?? { generation: 0, pending: 0 };
+      pending.pending++;
+      pendingScopes.set(key, pending);
+      try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const globalAtStart = generation;
+          const scopeAtStart = pending.generation;
+          const binding = await readBinding(scope);
+          if (globalAtStart !== generation || scopeAtStart !== pending.generation) continue;
+          if (!binding) { cache.delete(key); throw new Error(`No profile binding found for scope ${key}`); }
+          const fingerprint = JSON.stringify([binding.profileType, binding.moduleOverrides ?? null]);
+          const cached = cache.get(key);
+          if (cached && binding.revision < cached.revision) throw new Error('Profile binding revision regressed');
+          if (cached && binding.revision === cached.revision && fingerprint !== cached.fingerprint) throw new Error('Profile binding changed without a revision increment');
+          const currentTime = now();
+          if (!Number.isFinite(currentTime)) throw new Error('Profile cache clock must return a finite time');
+          if (globalAtStart !== generation || scopeAtStart !== pending.generation) continue;
+          if (ttl > 0 && cached && binding.revision === cached.revision && currentTime < cached.expiresAt) {
+            cache.delete(key); cache.set(key, cached);
+            return cached.config;
+          }
+          const config = resolveProfileConfig(registry, binding.profileType, binding.moduleOverrides);
+          if (globalAtStart !== generation || scopeAtStart !== pending.generation) continue;
+          if (ttl > 0) {
+            for (const [entryKey, entry] of cache) if (entry.expiresAt <= currentTime) cache.delete(entryKey);
+            cache.delete(key);
+            while (cache.size >= maxEntries) {
+              const oldest = cache.keys().next().value;
+              if (oldest === undefined) break;
+              cache.delete(oldest);
+            }
+            cache.set(key, { config, revision: binding.revision, fingerprint, expiresAt: currentTime + ttl });
+          }
+          return config;
         }
-        cache.delete(ctx.unitId);
+        throw new Error('Profile resolution invalidated repeatedly; retry the request');
+      } finally {
+        pending.pending--;
+        if (pending.pending === 0) pendingScopes.delete(key);
       }
-
-      const binding = await store.getBinding(ctx.unitId);
-      if (!binding) {
-        throw new Error(`No profile binding found for unit "${ctx.unitId}"`);
-      }
-
-      const config = resolveProfileConfig(
-        registry,
-        binding.profileType,
-        binding.moduleOverrides,
-      );
-
-      cache.set(ctx.unitId, {
-        config,
-        expiresAt: ttl > 0 ? Date.now() + ttl : Infinity,
-      });
-      return config;
     },
-
-    async getBinding(ctx: TenantContext): Promise<ProfileBinding | undefined> {
-      return store.getBinding(ctx.unitId);
+    getBinding(ctx) { return readBinding(normalizedProfileScope(ctx)); },
+    invalidate(scope) {
+      const key = profileScopeKey(scope);
+      cache.delete(key);
+      const pending = pendingScopes.get(key);
+      if (pending) pending.generation++;
     },
-
-    clearCache() {
-      cache.clear();
-    },
+    clearCache() { cache.clear(); generation++; },
   };
 }

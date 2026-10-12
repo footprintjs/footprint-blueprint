@@ -148,7 +148,7 @@ describe("prototype pollution prevention", () => {
     expect(mod.id).toBe("constructor");
 
     const registry = createModuleRegistry({ modules: [mod] });
-    expect(registry.getModule("constructor")).toBe(mod);
+    expect(registry.getModule("constructor")).toEqual(mod);
     // Should NOT interfere with Object.prototype
     expect(({} as any).constructor).toBe(Object);
   });

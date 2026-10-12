@@ -1,3 +1,4 @@
+import { immutableValue } from "./immutable.js";
 import type { ProfileDefinition } from "./types.js";
 
 /**
@@ -6,10 +7,10 @@ import type { ProfileDefinition } from "./types.js";
 export type ProfileInput = {
   type: string;
   displayName: string;
-  modules: string[];
-  roles?: string[];
+  modules: readonly string[];
+  roles?: readonly string[];
   schedulingPattern?: string;
-  meta?: Record<string, unknown>;
+  meta?: Readonly<Record<string, unknown>>;
 };
 
 /**
@@ -51,7 +52,7 @@ export function defineProfile(input: ProfileInput): ProfileDefinition {
     modules: Object.freeze([...input.modules]),
     roles: Object.freeze([...(input.roles ?? [])]),
     schedulingPattern: (input.schedulingPattern ?? "default").trim(),
-    meta: Object.freeze({ ...(input.meta ?? {}) }),
+    meta: immutableValue(input.meta ?? {}),
   };
 
   return Object.freeze(definition);

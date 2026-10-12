@@ -1,81 +1,53 @@
-import type { ActionDefinition, MCPToolDefinition, SchemaExporter } from "./types.js";
-import { createMCPExporter } from "./exporters.js";
-
-/**
- * An action registry holds action definitions and can export them
- * as MCP tools, filtered by enabled modules.
- */
+import type { ActionDefinition, ActionDiscoveryContext, MCPToolDefinition, SchemaExporter } from './types.js';
+import { createMCPExporter } from './exporters.js';
+import { compileActionInput, freezeData } from './validation.js';
 export type ActionRegistry = {
-  /** Get an action by ID */
   getAction(id: string): ActionDefinition | undefined;
-  /** List all registered actions */
   allActions(): readonly ActionDefinition[];
-  /** Filter actions by domain */
   forDomain(domain: string): readonly ActionDefinition[];
-  /** Filter actions that require a given module */
   forModule(moduleId: string): readonly ActionDefinition[];
-  /** Export available actions as MCP tool definitions (filtered by enabled modules) */
-  toMCPTools(enabledModules: ReadonlySet<string>): readonly MCPToolDefinition[];
-  /** Export available actions using a custom schema exporter (adapter pattern) */
-  exportActions<T>(enabledModules: ReadonlySet<string>, exporter: SchemaExporter<T>): T;
+  toMCPTools(discovery: ActionDiscoveryContext): Promise<readonly MCPToolDefinition[]>;
+  exportActions<T>(discovery: ActionDiscoveryContext, exporter: SchemaExporter<T>): Promise<T>;
+  /** Pure schema formatting, never a tool server or authorization boundary. */
+  exportMetadata<T>(enabledModules: ReadonlySet<string>, exporter: SchemaExporter<T>): T;
 };
-
-export type ActionRegistryInput = {
-  actions: readonly ActionDefinition[];
-};
-
-/**
- * Create an action registry.
- */
+export type ActionRegistryInput = { actions: readonly ActionDefinition[] };
 export function createActionRegistry(input: ActionRegistryInput): ActionRegistry {
-  const mcpExporter = createMCPExporter();
-  const actionMap = new Map<string, ActionDefinition>();
-
-  for (const action of input.actions) {
-    if (!action.id || typeof action.id !== "string" || action.id.trim().length === 0) {
-      throw new Error("Action id is required and must be a non-empty string");
+  const map = new Map<string, ActionDefinition>();
+  for (const original of input.actions) {
+    if (typeof original.id !== 'string' || !original.id.trim()) throw new Error('Action id is required and must be a non-empty string');
+    for (const field of ['name', 'domain', 'description', 'category'] as const) if (typeof original[field] !== 'string' || !original[field].trim()) throw new Error(`Action "${original.id}": ${field} is required`);
+    if (map.has(original.id)) throw new Error(`Duplicate action ID: "${original.id}"`);
+    if (!Array.isArray(original.parameters) || !Array.isArray(original.requiredModules) || original.requiredModules.some(id => typeof id !== 'string' || !id.trim())) throw new Error(`Action "${original.id}" has invalid parameters or modules`);
+    const names = new Set<string>();
+    for (const parameter of original.parameters) {
+      if (!parameter || typeof parameter.name !== 'string' || !parameter.name.trim() || names.has(parameter.name) || !['string', 'number', 'integer', 'boolean', 'object', 'array'].includes(parameter.type) || typeof parameter.required !== 'boolean') throw new Error(`Action "${original.id}" has an invalid or duplicate parameter`);
+      names.add(parameter.name);
     }
-    if (!action.name || typeof action.name !== "string") {
-      throw new Error(`Action "${action.id}": name is required`);
-    }
-    if (!action.domain || typeof action.domain !== "string") {
-      throw new Error(`Action "${action.id}": domain is required`);
-    }
-    if (actionMap.has(action.id)) {
-      throw new Error(`Duplicate action ID: "${action.id}"`);
-    }
-    actionMap.set(action.id, action);
+    if (original.capabilityId !== undefined && (typeof original.capabilityId !== 'string' || !original.capabilityId.trim())) throw new Error(`Action "${original.id}" has an invalid capability`);
+    if (original.requiredPermissions && (!Array.isArray(original.requiredPermissions) || original.requiredPermissions.some(permission => typeof permission !== 'string' || !permission.trim()))) throw new Error(`Action "${original.id}" has invalid permissions`);
+    const action = freezeData(original); compileActionInput(action); map.set(action.id, action);
   }
-
-  const frozenAll = Object.freeze(Array.from(actionMap.values()));
-
-  return {
-    getAction(id) {
-      return actionMap.get(id);
+  const all = Object.freeze([...map.values()]);
+  const filter = (modules: ReadonlySet<string>) => all.filter(action => action.requiredModules.every(id => modules.has(id)));
+  const registry: ActionRegistry = {
+    getAction: id => map.get(id), allActions: () => all,
+    forDomain: domain => Object.freeze(all.filter(action => action.domain === domain)),
+    forModule: id => Object.freeze(all.filter(action => action.requiredModules.includes(id))),
+    exportMetadata: (modules, exporter) => exporter.export(filter(modules)),
+    async exportActions(discovery, exporter) {
+      if (!discovery || typeof discovery.authorizer !== 'function' || typeof discovery.hasImplementation !== 'function') return exporter.export([]);
+      const context = freezeData(discovery.context);
+      const authorize = discovery.authorizer;
+      const hasImplementation = discovery.hasImplementation;
+      const available: ActionDefinition[] = [];
+      for (const action of filter(discovery.enabledModules)) {
+        if (!hasImplementation(action)) continue;
+        try { if (await authorize({ action, context, purpose: 'discover' }) === true) available.push(action); } catch { /* Authorization failure denies discovery. */ }
+      }
+      return exporter.export(Object.freeze(available));
     },
-
-    allActions() {
-      return frozenAll;
-    },
-
-    forDomain(domain) {
-      return frozenAll.filter((a) => a.domain === domain);
-    },
-
-    forModule(moduleId) {
-      return frozenAll.filter((a) => a.requiredModules.includes(moduleId));
-    },
-
-    toMCPTools(enabledModules) {
-      return this.exportActions(enabledModules, mcpExporter);
-    },
-
-    exportActions<T>(enabledModules: ReadonlySet<string>, exporter: SchemaExporter<T>): T {
-      // Actions with empty requiredModules are global — available to all profiles
-      const available = frozenAll.filter((a) =>
-        a.requiredModules.every((m) => enabledModules.has(m)),
-      );
-      return exporter.export(available);
-    },
+    async toMCPTools(discovery) { return registry.exportActions(discovery, createMCPExporter()); },
   };
+  return Object.freeze(registry);
 }

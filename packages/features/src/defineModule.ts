@@ -1,3 +1,4 @@
+import { immutableValue } from "./immutable.js";
 import type { ModuleDefinition } from "./types.js";
 
 /**
@@ -8,11 +9,11 @@ export type ModuleInput = {
   name: string;
   description?: string;
   domain: string;
-  requires?: string[];
-  capabilities?: string[];
-  terminology?: Record<string, Record<string, string>>;
-  seed?: Record<string, unknown>;
-  roles?: Record<string, string[]>;
+  requires?: readonly string[];
+  capabilities?: readonly string[];
+  terminology?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  seed?: Readonly<Record<string, unknown>>;
+  roles?: Readonly<Record<string, readonly string[]>>;
 };
 
 /**
@@ -63,39 +64,10 @@ export function defineModule(input: ModuleInput): ModuleDefinition {
     domain: input.domain.trim(),
     requires: Object.freeze([...(input.requires ?? [])]),
     capabilities: Object.freeze([...(input.capabilities ?? [])]),
-    terminology: deepFreeze(input.terminology ?? {}),
-    seed: deepFreeze(input.seed ?? {}),
-    roles: deepFreezeRoles(input.roles ?? {}),
+    terminology: immutableValue(input.terminology ?? {}),
+    seed: immutableValue(input.seed ?? {}),
+    roles: immutableValue(input.roles ?? {}),
   };
 
   return Object.freeze(definition);
-}
-
-function deepFreeze<T extends Record<string, unknown>>(obj: T): Readonly<T> {
-  const frozen: Record<string, unknown> = {};
-  for (const key of Object.keys(obj)) {
-    const value = obj[key];
-    if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
-      if (Array.isArray(value)) {
-        frozen[key] = Object.freeze(value.map((item) =>
-          typeof item === "object" && item !== null ? Object.freeze({ ...item }) : item
-        ));
-      } else {
-        frozen[key] = deepFreeze(value as Record<string, unknown>);
-      }
-    } else {
-      frozen[key] = value;
-    }
-  }
-  return Object.freeze(frozen) as Readonly<T>;
-}
-
-function deepFreezeRoles(
-  roles: Record<string, string[]>
-): Readonly<Record<string, readonly string[]>> {
-  const frozen: Record<string, readonly string[]> = {};
-  for (const key of Object.keys(roles)) {
-    frozen[key] = Object.freeze([...roles[key]!]);
-  }
-  return Object.freeze(frozen);
 }

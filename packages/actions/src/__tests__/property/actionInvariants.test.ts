@@ -1,3 +1,4 @@
+import { createMCPExporter } from '../../exporters.js';
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { createActionRegistry } from "../../actionRegistry.js";
@@ -18,10 +19,10 @@ const actionArb = (id: string): fc.Arbitrary<ActionDefinition> =>
   fc.record({
     id: fc.constant(id),
     name: fc.stringMatching(/^[A-Z][a-z]{1,10}$/),
-    description: fc.stringMatching(/^[a-z ]{1,30}$/),
+    description: fc.stringMatching(/^[a-z]{1,30}$/),
     domain: fc.stringMatching(/^[a-z]{1,8}$/),
     category: fc.constantFrom("crud", "workflow", "report"),
-    parameters: fc.array(paramArb, { maxLength: 5 }),
+    parameters: fc.uniqueArray(paramArb, { maxLength: 5, selector: p => p.name }),
     requiredModules: fc.array(moduleIdArb, { maxLength: 3 }),
   });
 
@@ -39,7 +40,7 @@ describe("property: MCP tools always have valid schema", () => {
         fc.array(moduleIdArb, { maxLength: 5 }).map((ids) => new Set(ids)),
         (actions, enabledModules) => {
           const registry = createActionRegistry({ actions });
-          const tools = registry.toMCPTools(enabledModules);
+          const tools = registry.exportMetadata(enabledModules, createMCPExporter());
 
           for (const tool of tools) {
             expect(tool.inputSchema.type).toBe("object");
@@ -75,7 +76,7 @@ describe("property: MCP tools always have valid schema", () => {
         fc.array(moduleIdArb, { maxLength: 5 }).map((ids) => new Set(ids)),
         (actions, enabledModules) => {
           const registry = createActionRegistry({ actions });
-          const tools = registry.toMCPTools(enabledModules);
+          const tools = registry.exportMetadata(enabledModules, createMCPExporter());
           const allIds = new Set(registry.allActions().map((a) => a.id));
 
           for (const tool of tools) {

@@ -13,15 +13,15 @@ const dance = defineProfile({ type: "dance", displayName: "Dance", modules: ["st
 describe("createModuleRegistry", () => {
   it("creates a registry with modules", () => {
     const registry = createModuleRegistry({ modules: [students, academics] });
-    expect(registry.getModule("students")).toBe(students);
-    expect(registry.getModule("academics")).toBe(academics);
+    expect(registry.getModule("students")).toEqual(students);
+    expect(registry.getModule("academics")).toEqual(academics);
     expect(registry.getModule("unknown")).toBeUndefined();
   });
 
   it("creates a registry with profiles", () => {
     const registry = createModuleRegistry({ modules: [students, academics, attendance], profileTypes: [k12, dance] });
-    expect(registry.getProfile("k12")).toBe(k12);
-    expect(registry.getProfile("dance")).toBe(dance);
+    expect(registry.getProfile("k12")).toEqual(k12);
+    expect(registry.getProfile("dance")).toEqual(dance);
     expect(registry.getProfile("unknown")).toBeUndefined();
   });
 
@@ -63,6 +63,6 @@ describe("createModuleRegistry", () => {
     const registry = createModuleRegistry({ modules: [students, academics] });
     const all = registry.getAllModules();
     expect(all.size).toBe(2);
-    expect(all.get("students")).toBe(students);
+    expect(all.get("students")).toEqual(students);
   });
 });

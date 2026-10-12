@@ -61,24 +61,23 @@ describe("immutability of context and bindings", () => {
 
   it("stored bindings cannot be mutated", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "u1", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "u1", profileType: "dance", createdAt: "2024-01-01" },
     ]);
-    const binding = await store.getBinding("u1");
+    const binding = await store.getBinding({ tenantId: "t1", unitId: "u1" });
     expect(() => { (binding as any).profileType = "hacked"; }).toThrow();
   });
 });
 
 describe("cross-tenant isolation", () => {
   it("unit from tenant A cannot access tenant B bindings", async () => {
-    // The store is keyed by unitId, not tenantId
-    // This test verifies that different units get different bindings
+    // Complete tenant/campus/unit scope prevents overlapping local IDs from aliasing.
     const store = createMemoryProfileStore([
-      { unitId: "tenant-a-school", profileType: "dance", createdAt: "2024-01-01" },
-      { unitId: "tenant-b-school", profileType: "tutoring", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "tenant-a-school", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t2", revision: 0, unitId: "tenant-b-school", profileType: "tutoring", createdAt: "2024-01-01" },
     ]);
 
-    const bindingA = await store.getBinding("tenant-a-school");
-    const bindingB = await store.getBinding("tenant-b-school");
+    const bindingA = await store.getBinding({ tenantId: "t1", unitId: "tenant-a-school" });
+    const bindingB = await store.getBinding({ tenantId: "t2", unitId: "tenant-b-school" });
 
     expect(bindingA?.profileType).toBe("dance");
     expect(bindingB?.profileType).toBe("tutoring");
@@ -87,12 +86,12 @@ describe("cross-tenant isolation", () => {
 
   it("unknown unitId returns undefined, not another tenant's data", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "real-unit", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "real-unit", profileType: "dance", createdAt: "2024-01-01" },
     ]);
 
-    expect(await store.getBinding("fake-unit")).toBeUndefined();
-    expect(await store.getBinding("")).toBeUndefined();
-    expect(await store.getBinding("__proto__")).toBeUndefined();
-    expect(await store.getBinding("constructor")).toBeUndefined();
+    expect(await store.getBinding({ tenantId: "t1", unitId: "fake-unit" })).toBeUndefined();
+    await expect(store.getBinding({ tenantId: "t1", unitId: "" })).rejects.toThrow("unitId");
+    expect(await store.getBinding({ tenantId: "t1", unitId: "__proto__" })).toBeUndefined();
+    expect(await store.getBinding({ tenantId: "t1", unitId: "constructor" })).toBeUndefined();
   });
 });

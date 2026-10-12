@@ -27,6 +27,7 @@ export type {
   SeedApplier,
   SeedApplyResult,
   SeedExecutionResult,
+  SeedExecutionOptions,
 } from "./types.js";
 
 // Plan generation

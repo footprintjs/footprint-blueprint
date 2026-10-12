@@ -1,3 +1,6 @@
+import { defineModule } from "./defineModule.js";
+import { defineProfile } from "./defineProfile.js";
+import { immutableMap } from "./immutable.js";
 import type { ModuleDefinition, ProfileDefinition, ValidationError } from "./types.js";
 import { validateRegistry } from "./dependencyGraph.js";
 
@@ -29,7 +32,7 @@ export type ModuleRegistry = {
   /** Get all registered profile definitions */
   getAllProfiles(): ReadonlyMap<string, ProfileDefinition>;
   /** Validate all definitions for consistency (missing deps, circular deps) */
-  validate(): ValidationError[];
+  validate(): readonly ValidationError[];
   /** List all registered module IDs */
   moduleIds(): readonly string[];
   /** List all registered profile IDs */
@@ -52,20 +55,24 @@ export function createModuleRegistry(input: ModuleRegistryInput): ModuleRegistry
   const modules = new Map<string, ModuleDefinition>();
   const profileTypes = new Map<string, ProfileDefinition>();
 
-  for (const mod of input.modules) {
+  for (const supplied of input.modules) {
+    const mod = defineModule(supplied);
     if (modules.has(mod.id)) {
       throw new Error(`Duplicate module ID: "${mod.id}"`);
     }
     modules.set(mod.id, mod);
   }
 
-  for (const st of input.profileTypes ?? []) {
+  for (const supplied of input.profileTypes ?? []) {
+    const st = defineProfile(supplied);
     if (profileTypes.has(st.type)) {
       throw new Error(`Duplicate profile: "${st.type}"`);
     }
     profileTypes.set(st.type, st);
   }
 
+  const readonlyModules = immutableMap(modules);
+  const readonlyProfiles = immutableMap(profileTypes);
   const frozenModuleIds = Object.freeze(Array.from(modules.keys()));
   const frozenProfileTypeIds = Object.freeze(Array.from(profileTypes.keys()));
 
@@ -74,13 +81,13 @@ export function createModuleRegistry(input: ModuleRegistryInput): ModuleRegistry
       return modules.get(id);
     },
     getAllModules() {
-      return modules;
+      return readonlyModules;
     },
     getProfile(type: string) {
       return profileTypes.get(type);
     },
     getAllProfiles() {
-      return profileTypes;
+      return readonlyProfiles;
     },
     validate() {
       const errors: ValidationError[] = [];
@@ -102,7 +109,7 @@ export function createModuleRegistry(input: ModuleRegistryInput): ModuleRegistry
         }
       }
 
-      return errors;
+      return Object.freeze(errors);
     },
     moduleIds() {
       return frozenModuleIds;

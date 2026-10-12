@@ -1,100 +1,47 @@
 # @footprint/tenancy
 
-Multi-tenant context resolution and feature gate middleware.
+Scoped profile binding, revision-aware resolution, and feature gating. The consumer supplies a `ProfileStore`; the library does not authenticate request headers or provide a database.
 
-## Why this exists
+## 0.2 contracts
 
-A configurable platform serves many customers, each with their own profile (dance school, K-12, clothing store). Every request needs to know: "Which customer is this? What profile do they use? What features are enabled?"
+A `ProfileScope` contains `{ tenantId, campusId?, unitId }`. Tenant and unit IDs are required, trimmed, and bounded to 160 characters. The same unit ID can exist in different tenants or campuses without sharing a binding or a cache entry. `TenantContext` adds an optional user ID. Build it from trusted authentication context; `fromHeaders()` only validates shape.
 
-Without a system, you end up with tenant context scattered across middleware, manual feature checks in every route, and no consistent way to gate features per customer.
+A `ProfileBinding` contains the complete scope plus `revision`, `profileType`, `createdAt`, optional `moduleOverrides`, and optional plain `meta`. The revision is a nonnegative safe integer and must increase when configuration changes. `ProfileStore.getBinding(scope)` must strongly read that complete scope. Responses with another scope, malformed revisions, unknown profiles, or invalid module graphs are rejected.
 
-`@footprint/tenancy` solves this by connecting the tenant hierarchy to the module registry from `@footprint/features`. One resolver call gives you the full resolved config — feature gates, terminology, roles — for the current tenant.
-
-This is Layer 2 of the [footprint-blueprint](../../) framework. It depends on `@footprint/features` (Layer 1).
-
-## What it does
-
-```
-HTTP Request
-  → fromHeaders() ──→ TenantContext { tenantId, unitId }
-  → ProfileResolver.resolve(ctx) ──→ ResolvedProfileConfig
-  → GateMiddleware(ctx, ["attendance"]) ──→ { allowed: true/false }
-```
-
-1. **Tenant context** — extract and validate tenant info from headers (or any source)
-2. **Profile resolver** — look up which profile a unit uses, resolve full config
-3. **Gate middleware** — check if all required modules are enabled before processing
-
-## Quick start
-
-```typescript
-import { defineModule, defineProfile, createModuleRegistry } from "@footprint/features";
-import {
-  createTenantContext,
-  createMemoryProfileStore,
-  createProfileResolver,
-  createGateMiddleware,
-} from "@footprint/tenancy";
-
-// Registry from @footprint/features
-const registry = createModuleRegistry({ modules: [...], profileTypes: [...] });
-
-// Profile store (in-memory for dev, replace with DB adapter in prod)
+```ts
+const scope = { tenantId: "acme", campusId: "north", unitId: "store-1" };
 const store = createMemoryProfileStore([
-  { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
-  { unitId: "school-2", profileType: "k12", createdAt: "2024-01-01" },
+  { ...scope, revision: 0, profileType: "fashion", createdAt: "2026-01-01" },
 ]);
-
-// Wire up
-const resolver = createProfileResolver(registry, store);
-const gateCheck = createGateMiddleware(resolver);
-
-// In a request handler:
-const ctx = createTenantContext({ tenantId: "acme", unitId: "school-1" });
-const result = await gateCheck(ctx, ["attendance", "scheduling"]);
-
-if (!result.allowed) {
-  // 403 — modules not enabled for this unit's profile
-  return { status: 403, denied: result.denied };
-}
-
-// Proceed with full config available
-const config = await resolver.resolve(ctx);
-config.terminology; // resolved labels for this profile
-config.roles;       // merged roles
+const resolver = createProfileResolver(registry, store, {
+  cacheTtlMs: 30_000,
+  maxCacheEntries: 1000,
+});
+const config = await resolver.resolve(scope);
+store.updateBinding({ ...scope, revision: 1, profileType: "fashion", moduleOverrides: ["catalog"], createdAt: "2026-01-01" }, 0);
+resolver.invalidate(scope);
 ```
 
-## API
+The memory adapter captures immutable binding data. `addBinding(binding)` rejects duplicate full scopes. `updateBinding(binding, expectedRevision)` requires the current revision to match and the new revision to equal `expectedRevision + 1`. `removeBinding(scope, expectedRevision)` also checks the version. `allBindings({tenantId, campusId?})` enumerates one exact namespace. It is a local/test adapter, not persistent storage or an authorization service.
 
-| Export | Purpose |
-|--------|---------|
-| `createTenantContext(input)` | Create a validated, frozen tenant context |
-| `fromHeaders(headers, headerMap?)` | Extract tenant context from HTTP headers |
-| `createProfileResolver(registry, store)` | Create a resolver that binds tenants to profiles |
-| `createGateMiddleware(resolver)` | Create feature gate middleware |
-| `createMemoryProfileStore(bindings)` | In-memory profile store (for testing) |
+## Cache behavior
 
-## Key types
+Every resolution strongly reads the binding. Only the derived immutable configuration is cached. A different revision is resolved immediately; changing the profile or module overrides under an unchanged cached revision is rejected. Persistent adapters must enforce monotonic revisions when writing bindings.
 
-| Type | Purpose |
-|------|---------|
-| `TenantContext` | `{ tenantId, campusId?, unitId, userId? }` |
-| `ProfileBinding` | `{ unitId, profileType, moduleOverrides?, createdAt }` |
-| `ProfileStore` | Port interface: `getBinding(unitId) → ProfileBinding` |
-| `TenantGateResult` | Detailed denial reason with unitId and profileType |
+The default derivation TTL is 30 seconds. `cacheTtlMs: 0` disables derivation caching. TTLs must be integers from 0 to 300,000 milliseconds; LRU capacity defaults to 1000 and is bounded to 10,000 entries. An optional `now` function supports deterministic testing.
 
-## Testing
+`invalidate(scope)` affects one tenant/campus/unit scope. `clearCache()` affects all scopes. Both prevent earlier in-flight reads from repopulating or returning obsolete data: invalidated reads retry at most three times, then reject if the scope keeps changing.
 
-61 tests across 5 categories:
+If a composed binding also incorporates a separately versioned override record, its revision must represent every contributing configuration change. A sum of nondecreasing base and override revisions is one suitable scalar version; retain monotonic tombstones when removing overrides.
 
-| Category | What it verifies |
-|----------|-----------------|
-| **Unit** (33) | Context creation, resolver caching, gate logic, store operations |
-| **Scenario** (6) | Multi-tenant setup with 3 units, cross-tenant isolation, full request flow |
-| **Property** (4) | Context always frozen, gate invariants via fast-check |
-| **Boundary** (5) | 1000 units, 50-module gate checks, cache efficiency, unicode |
-| **Security** (13) | Input validation, immutability, cross-tenant isolation, prototype keys |
+## Feature middleware
 
-```bash
-pnpm test
-```
+`createGateMiddleware(resolver)` resolves and validates the binding even for an empty module list. It checks module availability, not user permissions. The action boundary still needs authenticated scope, an authorizer, input validation, and domain preconditions.
+
+## Breaking changes from 0.1
+
+- Binding reads and deletes take a full scope, not a unit ID string.
+- Every binding needs `tenantId` and `revision`.
+- Binding updates/deletes require revision preconditions.
+- Default caching is finite; zero means no caching.
+- Invalid bindings and definitions fail closed instead of producing a partially enabled configuration.

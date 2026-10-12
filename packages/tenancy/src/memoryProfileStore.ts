@@ -1,55 +1,47 @@
-import type { ProfileBinding, ProfileStore } from "./types.js";
+import type { ProfileBinding, ProfileScope, ProfileStore } from './types.js';
+import { bindingRevision, captureProfileBinding, normalizedProfileScope, profileScopeKey } from './profileScope.js';
 
-/**
- * In-memory profile store — useful for testing and simple deployments.
- *
- * @example
- * ```ts
- * const store = createMemoryProfileStore([
- *   { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
- *   { unitId: "school-2", profileType: "k12", createdAt: "2024-01-01" },
- * ]);
- *
- * await store.getBinding("school-1"); // { unitId: "school-1", profileType: "dance", ... }
- * ```
- */
-export function createMemoryProfileStore(
-  bindings: readonly ProfileBinding[],
-): ProfileStore & {
-  /** Add a binding at runtime (for testing) */
+export type MemoryProfileStore = ProfileStore & {
   addBinding(binding: ProfileBinding): void;
-  /** Remove a binding at runtime (for testing) */
-  removeBinding(unitId: string): boolean;
-  /** Get all bindings */
-  allBindings(): readonly ProfileBinding[];
-} {
+  /** Same scope only; the next revision must be expectedRevision + 1. */
+  updateBinding(binding: ProfileBinding, expectedRevision: number): void;
+  removeBinding(scope: ProfileScope, expectedRevision: number): boolean;
+  /** Enumerate one tenant/campus namespace, never all tenants implicitly. */
+  allBindings(namespace: Pick<ProfileScope, 'tenantId' | 'campusId'>): readonly ProfileBinding[];
+};
+
+/** Test/local adapter. Persistent adapters must enforce equivalent scope and revision checks. */
+export function createMemoryProfileStore(bindings: readonly ProfileBinding[]): MemoryProfileStore {
   const store = new Map<string, ProfileBinding>();
-
-  for (const binding of bindings) {
-    if (store.has(binding.unitId)) {
-      throw new Error(`Duplicate binding for unit "${binding.unitId}"`);
-    }
-    store.set(binding.unitId, Object.freeze(binding));
-  }
-
+  const addBinding = (binding: ProfileBinding) => {
+    const captured = captureProfileBinding(binding);
+    const key = profileScopeKey(captured);
+    if (store.has(key)) throw new Error(`Duplicate binding for scope ${key}`);
+    store.set(key, captured);
+  };
+  for (const binding of bindings) addBinding(binding);
   return {
-    async getBinding(unitId: string): Promise<ProfileBinding | undefined> {
-      return store.get(unitId);
+    async getBinding(scope) { return store.get(profileScopeKey(scope)); },
+    addBinding,
+    updateBinding(binding, expectedRevision) {
+      const captured = captureProfileBinding(binding);
+      const key = profileScopeKey(captured);
+      const current = store.get(key);
+      bindingRevision(expectedRevision);
+      if (!current || current.revision !== expectedRevision || captured.revision !== expectedRevision + 1) throw new Error('Profile binding revision conflict');
+      store.set(key, captured);
     },
-
-    addBinding(binding: ProfileBinding): void {
-      if (store.has(binding.unitId)) {
-        throw new Error(`Duplicate binding for unit "${binding.unitId}"`);
-      }
-      store.set(binding.unitId, Object.freeze(binding));
+    removeBinding(scope, expectedRevision) {
+      const key = profileScopeKey(scope);
+      bindingRevision(expectedRevision);
+      const current = store.get(key);
+      if (!current) return false;
+      if (current.revision !== expectedRevision) throw new Error('Profile binding revision conflict');
+      return store.delete(key);
     },
-
-    removeBinding(unitId: string): boolean {
-      return store.delete(unitId);
-    },
-
-    allBindings(): readonly ProfileBinding[] {
-      return Object.freeze(Array.from(store.values()));
+    allBindings(namespace) {
+      const scope = normalizedProfileScope({ ...namespace, unitId: 'namespace' });
+      return Object.freeze([...store.values()].filter((binding) => binding.tenantId === scope.tenantId && binding.campusId === scope.campusId));
     },
   };
 }

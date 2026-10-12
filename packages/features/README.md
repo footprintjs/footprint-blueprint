@@ -136,3 +136,12 @@ pnpm test
 3. **Zero dependencies** — only TypeScript, nothing else at runtime
 4. **Fail loud** — invalid definitions throw immediately, not at resolution time
 5. **Consumer decides** — the library gives you seed blueprints, you decide how to apply them
+
+
+## 0.2 migration and guarantees
+
+Resolution fails closed: unknown profiles, unknown modules, missing prerequisites, and dependency cycles throw. Call `registry.validate()` at startup to report the full definition graph; do not continue startup with its errors. An explicit empty module override is supported for a known profile.
+
+Definitions and resolved configurations are cloned snapshots. Their nested plain objects and arrays are frozen. Registry Maps, resolved Sets, and dependency Maps expose a read-only facade with `get`, `has`, iteration, and `forEach`; they do not expose native mutation methods or raw backing collections. Convert them with `Array.from()` when producing serialized DTOs. Definition data supports plain objects/arrays/primitive values; accessors, functions, symbols, custom instances, and cycles are rejected. Adapter functions belong in injected ports rather than definition data.
+
+A feature gate describes enabled modules. It does not authorize a user or validate business commands. Keep those checks at the authenticated action/domain boundary.

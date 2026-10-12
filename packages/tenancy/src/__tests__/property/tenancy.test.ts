@@ -49,7 +49,7 @@ describe("property: gate middleware invariants", () => {
         fc.stringMatching(/^[a-z][a-z0-9]{0,9}$/),
         async (unitId) => {
           const store = createMemoryProfileStore([
-            { unitId, profileType: "basic", createdAt: "2024-01-01" },
+            { tenantId: "t1", revision: 0, unitId, profileType: "basic", createdAt: "2024-01-01" },
           ]);
           const resolver = createProfileResolver(registry, store);
           const gate = createGateMiddleware(resolver);
@@ -70,7 +70,7 @@ describe("property: gate middleware invariants", () => {
         fc.array(fc.stringMatching(/^[a-z]{1,8}$/), { minLength: 1, maxLength: 5 }),
         async (requiredModules) => {
           const store = createMemoryProfileStore([
-            { unitId: "u1", profileType: "basic", createdAt: "2024-01-01" },
+            { tenantId: "t1", revision: 0, unitId: "u1", profileType: "basic", createdAt: "2024-01-01" },
           ]);
           const resolver = createProfileResolver(registry, store);
           const gate = createGateMiddleware(resolver);

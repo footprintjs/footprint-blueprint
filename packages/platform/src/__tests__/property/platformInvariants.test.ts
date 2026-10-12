@@ -4,7 +4,7 @@ import { defineModule, defineProfile, createModuleRegistry } from "@footprint/fe
 import { createMemoryProfileStore, createTenantContext } from "@footprint/tenancy";
 import { createActionRegistry } from "@footprint/actions";
 import type { ActionDefinition } from "@footprint/actions";
-import { createPlatform } from "../../platform.js";
+import { createAuthorizedTestPlatform as createPlatform } from "../fixtures.js";
 
 // Arbitrary: valid identifier
 const idArb = fc.stringMatching(/^[a-z][a-z0-9-]{0,19}$/).filter((s) => s.length >= 2);
@@ -30,7 +30,7 @@ describe("property: platform invariants", () => {
           profileTypes: [profile],
         });
         const store = createMemoryProfileStore([
-          { unitId, profileType, createdAt: "2024-01-01" },
+          { tenantId: "t1", revision: 0, unitId, profileType, createdAt: "2024-01-01" },
         ]);
         const platform = createPlatform({ registry, profileStore: store });
         const ctx = createTenantContext({ tenantId: "t1", unitId });
@@ -65,7 +65,7 @@ describe("property: platform invariants", () => {
           profileTypes: [profile],
         });
         const store = createMemoryProfileStore([
-          { unitId, profileType: "test", createdAt: "2024-01-01" },
+          { tenantId: "t1", revision: 0, unitId, profileType: "test", createdAt: "2024-01-01" },
         ]);
         const platform = createPlatform({ registry, profileStore: store });
         const ctx = createTenantContext({ tenantId: "t1", unitId });
@@ -107,7 +107,7 @@ describe("property: platform invariants", () => {
             profileTypes: [profile],
           });
           const store = createMemoryProfileStore([
-            { unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
+            { tenantId: "t1", revision: 0, unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
           ]);
           const actionReg = createActionRegistry({ actions });
           const platform = createPlatform({

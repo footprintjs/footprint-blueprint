@@ -3,7 +3,7 @@ import { defineModule, defineProfile, createModuleRegistry } from "@footprint/fe
 import { createMemoryProfileStore, createTenantContext } from "@footprint/tenancy";
 import { createActionRegistry } from "@footprint/actions";
 import type { ActionDefinition } from "@footprint/actions";
-import { createPlatform } from "../../platform.js";
+import { createAuthorizedTestPlatform as createPlatform } from "../fixtures.js";
 
 describe("boundary: platform with many modules and actions", () => {
   it("handles 100 modules and 200 actions", async () => {
@@ -42,7 +42,7 @@ describe("boundary: platform with many modules and actions", () => {
 
     const actionRegistry = createActionRegistry({ actions });
     const store = createMemoryProfileStore([
-      { unitId: "big-unit", profileType: "large", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "big-unit", profileType: "large", createdAt: "2024-01-01" },
     ]);
 
     const platform = createPlatform({
@@ -80,7 +80,7 @@ describe("boundary: platform with many modules and actions", () => {
     const profile = defineProfile({ type: "p", displayName: "P", modules: ["m"], roles: ["r"] });
     const registry = createModuleRegistry({ modules: [mod], profileTypes: [profile] });
     const store = createMemoryProfileStore([
-      { unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "u1", profileType: "p", createdAt: "2024-01-01" },
     ]);
     const actionRegistry = createActionRegistry({ actions: [] });
 

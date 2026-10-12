@@ -35,7 +35,7 @@ describe("error containment", () => {
   it("handler throwing does not crash executor", async () => {
     const action = makeAction({ id: "crash" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute(
       "crash",
@@ -52,7 +52,7 @@ describe("error containment", () => {
   it("handler throwing non-Error does not crash executor", async () => {
     const action = makeAction({ id: "crash2" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute(
       "crash2",
@@ -69,7 +69,7 @@ describe("error containment", () => {
     const good = makeAction({ id: "good" });
     const bad = makeAction({ id: "bad" });
     const registry = createActionRegistry({ actions: [good, bad] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const ctx = { profileType: "k12", unitId: "s1" };
 
@@ -87,7 +87,7 @@ describe("error containment", () => {
   it("result objects are frozen (immutable)", async () => {
     const action = makeAction({ id: "frozen" });
     const registry = createActionRegistry({ actions: [action] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const successResult = await executor.execute(
       "frozen", {}, { profileType: "k12", unitId: "s1" },
@@ -104,7 +104,7 @@ describe("error containment", () => {
 
   it("unknown action returns error without throwing", async () => {
     const registry = createActionRegistry({ actions: [] });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const result = await executor.execute(
       "nonexistent", {}, { profileType: "k12", unitId: "s1" },

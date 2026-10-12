@@ -1,3 +1,4 @@
+import { createMCPExporter } from '../../exporters.js';
 import { describe, it, expect } from "vitest";
 import { createActionRegistry } from "../../actionRegistry.js";
 import { createActionExecutor } from "../../actionExecutor.js";
@@ -67,7 +68,7 @@ describe("boundary: large action count", () => {
     const enabled = new Set(["mod-0", "mod-3", "mod-7"]);
 
     const start = performance.now();
-    const tools = registry.toMCPTools(enabled);
+    const tools = registry.exportMetadata(enabled, createMCPExporter());
     const elapsed = performance.now() - start;
 
     expect(tools).toHaveLength(30);
@@ -91,7 +92,7 @@ describe("boundary: large action count", () => {
     }));
 
     const registry = createActionRegistry({ actions });
-    const executor = createActionExecutor(registry);
+    const executor = createActionExecutor(registry, undefined, { authorizer: () => true });
 
     const results = await Promise.all(
       Array.from({ length: 100 }, (_, i) =>

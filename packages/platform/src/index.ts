@@ -16,7 +16,7 @@
  * } from "@footprint/platform";
  *
  * const registry = createModuleRegistry({ modules: [...], profileTypes: [...] });
- * const store = createMemoryProfileStore([{ unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" }]);
+ * const store = createMemoryProfileStore([{ tenantId: "t1", unitId: "school-1", revision: 0, profileType: "dance", createdAt: "2024-01-01" }]);
  * const platform = createPlatform({ registry, profileStore: store });
  *
  * const ctx = createTenantContext({ tenantId: "t1", unitId: "school-1" });
@@ -26,7 +26,7 @@
 
 // Platform factory and types
 export { createPlatform } from "./platform.js";
-export type { Platform, PlatformConfig, UnitSetupResult } from "./types.js";
+export type { Platform, PlatformConfig, UnitSetupResult, PreparedAction } from "./types.js";
 
 // Re-export key types from all packages for convenience
 // @footprint/features
@@ -63,6 +63,8 @@ export {
 export type {
   TenantContext,
   ProfileBinding,
+  ProfileScope,
+  ProfileResolverOptions,
   ProfileStore,
   TenantGateResult,
   GateMiddlewareResult,
@@ -99,7 +101,8 @@ export type {
 } from "@footprint/adapters";
 
 // @footprint/actions
-export { createActionRegistry, createActionExecutor } from "@footprint/actions";
+export { createActionRegistry, createActionExecutor, validateActionInput, ActionInputError, ActionAccessError } from "@footprint/actions";
+export { createEvidenceCollector, validateExecutionEvidence, EXECUTION_EVIDENCE_LIMITATIONS } from "@footprint/actions";
 export type {
   ActionDefinition,
   ActionParameter,
@@ -111,7 +114,27 @@ export type {
   TraceRecordContext,
   ActionExecutionContext,
   ActionHandler,
+  ActionAuthorizer,
+  ActionHandlerRegistry,
+  ActionExecutorOptions,
   ActionRegistry,
   ActionRegistryInput,
   ActionExecutor,
+  ExecutionEvidence,
+  EvidenceCollector,
+  EvidenceReporter,
+  EvidenceCollectorOptions,
+  EvidenceObservationInput,
+  EvidenceEffectInput,
+  EvidenceLink,
+  EvidenceOutcome,
+  EvidenceScope,
+  EvidenceProjectionKind,
+  JsonValue,
+  EvidenceEffectPhase,
+  EvidenceCaptureReport,
+  EvidenceFinalizeInput,
+  EvidenceValidationResult,
+  EvidenceObservation,
+  EvidenceEffect,
 } from "@footprint/actions";

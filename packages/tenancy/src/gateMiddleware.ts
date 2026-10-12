@@ -1,5 +1,6 @@
 import { createFeatureGate } from "@footprint/features";
 import type { ProfileResolver } from "./profileResolver.js";
+import { createTenantContext } from "./tenantContext.js";
 import type {
   TenantContext,
   TenantGateResult,
@@ -41,21 +42,19 @@ export function createGateMiddleware(resolver: ProfileResolver): GateMiddleware 
     ctx: TenantContext,
     requiredModules: readonly string[],
   ): Promise<GateMiddlewareResult> => {
-    if (requiredModules.length === 0) {
-      return { allowed: true, denied: [] };
-    }
-
-    const config = await resolver.resolve(ctx);
+    const context = createTenantContext(ctx);
+    const modules = Object.freeze([...new Set(requiredModules)]);
+    const config = await resolver.resolve(context);
     const gate = createFeatureGate(config);
     const denied: TenantGateResult[] = [];
 
-    for (const moduleId of requiredModules) {
+    for (const moduleId of modules) {
       const check = gate.check(moduleId);
       if (!check.allowed) {
         denied.push({
           allowed: false,
           moduleId,
-          unitId: ctx.unitId,
+          unitId: context.unitId,
           profileType: config.profileType,
           reason: check.reason,
         });

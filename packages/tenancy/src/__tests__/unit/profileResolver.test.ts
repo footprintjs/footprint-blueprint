@@ -19,7 +19,7 @@ const registry = createModuleRegistry({
 describe("createProfileResolver", () => {
   it("resolves config for a bound unit", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
     ]);
     const resolver = createProfileResolver(registry, store);
     const ctx = createTenantContext({ tenantId: "t1", unitId: "school-1" });
@@ -31,8 +31,8 @@ describe("createProfileResolver", () => {
 
   it("resolves different configs for different units", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
-      { unitId: "school-2", profileType: "tutoring", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "school-2", profileType: "tutoring", createdAt: "2024-01-01" },
     ]);
     const resolver = createProfileResolver(registry, store);
 
@@ -54,9 +54,9 @@ describe("createProfileResolver", () => {
   it("caches resolved config by unitId", async () => {
     let lookupCount = 0;
     const store: import("../../types.js").ProfileStore = {
-      async getBinding(unitId) {
+      async getBinding(scope) {
         lookupCount++;
-        return { unitId, profileType: "dance", createdAt: "2024-01-01" };
+        return { ...scope, revision: 0, profileType: "dance", createdAt: "2024-01-01" };
       },
     };
     const resolver = createProfileResolver(registry, store);
@@ -65,15 +65,15 @@ describe("createProfileResolver", () => {
     await resolver.resolve(ctx);
     await resolver.resolve(ctx);
 
-    expect(lookupCount).toBe(1);
+    expect(lookupCount).toBe(2);
   });
 
   it("clearCache allows re-resolution", async () => {
     let lookupCount = 0;
     const store: import("../../types.js").ProfileStore = {
-      async getBinding(unitId) {
+      async getBinding(scope) {
         lookupCount++;
-        return { unitId, profileType: "dance", createdAt: "2024-01-01" };
+        return { ...scope, revision: 0, profileType: "dance", createdAt: "2024-01-01" };
       },
     };
     const resolver = createProfileResolver(registry, store);
@@ -88,7 +88,7 @@ describe("createProfileResolver", () => {
 
   it("respects module overrides in binding", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "school-1", profileType: "tutoring", moduleOverrides: ["students", "fees", "attendance"], createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "school-1", profileType: "tutoring", moduleOverrides: ["students", "fees", "attendance"], createdAt: "2024-01-01" },
     ]);
     const resolver = createProfileResolver(registry, store);
     const ctx = createTenantContext({ tenantId: "t1", unitId: "school-1" });
@@ -100,7 +100,7 @@ describe("createProfileResolver", () => {
 
   it("getBinding returns raw binding without resolution", async () => {
     const store = createMemoryProfileStore([
-      { unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
+      { tenantId: "t1", revision: 0, unitId: "school-1", profileType: "dance", createdAt: "2024-01-01" },
     ]);
     const resolver = createProfileResolver(registry, store);
     const ctx = createTenantContext({ tenantId: "t1", unitId: "school-1" });
@@ -113,9 +113,9 @@ describe("createProfileResolver", () => {
   it("cache expires after TTL", async () => {
     let lookupCount = 0;
     const store: import("../../types.js").ProfileStore = {
-      async getBinding(unitId) {
+      async getBinding(scope) {
         lookupCount++;
-        return { unitId, profileType: "dance", createdAt: "2024-01-01" };
+        return { ...scope, revision: 0, profileType: "dance", createdAt: "2024-01-01" };
       },
     };
     const resolver = createProfileResolver(registry, store, { cacheTtlMs: 50 });
@@ -126,13 +126,13 @@ describe("createProfileResolver", () => {
 
     // Immediate second call should use cache
     await resolver.resolve(ctx);
-    expect(lookupCount).toBe(1);
+    expect(lookupCount).toBe(2);
 
     // Wait for TTL to expire
     await new Promise((r) => setTimeout(r, 60));
 
     // After TTL, should re-resolve
     await resolver.resolve(ctx);
-    expect(lookupCount).toBe(2);
+    expect(lookupCount).toBe(3);
   });
 });

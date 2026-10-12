@@ -18,13 +18,13 @@ export function resolveTerminology(
   profileType: string,
   modules: readonly ModuleDefinition[]
 ): Record<string, string> {
-  const result: Record<string, string> = {};
+  const result: Record<string, string> = Object.create(null);
 
   for (const mod of modules) {
     for (const [termKey, labels] of Object.entries(mod.terminology)) {
       // First module to define a term wins (consistent first-wins for both
       // profile-specific and default labels)
-      if (termKey in result) continue;
+      if (Object.hasOwn(result, termKey)) continue;
 
       const profileLabel = labels[profileType];
       const defaultLabel = labels["default"];

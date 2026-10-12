@@ -1,7 +1,7 @@
 {
   "name": "footprint-blueprint",
   "private": true,
-  "description": "Define modules once, derive everything — a domain-agnostic platform framework",
+  "description": "Define modules once, derive everything \u2014 a domain-agnostic platform framework",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -9,6 +9,7 @@
     "clean": "pnpm -r clean"
   },
   "engines": {
-    "node": ">=20"
-  }
+    "node": ">=24.15.0 <25"
+  },
+  "packageManager": "pnpm@12.11.2"
 }

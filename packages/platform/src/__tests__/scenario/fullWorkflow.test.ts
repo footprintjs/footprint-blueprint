@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createTenantContext } from "@footprint/tenancy";
-import { createPlatform } from "../../platform.js";
+import { createAuthorizedTestPlatform as createPlatform } from "../fixtures.js";
 import {
   createTestRegistry,
   createTestProfileStore,
@@ -123,6 +123,6 @@ describe("scenario: platform without adapters/actions", () => {
   it("executeAction returns error", async () => {
     const result = await platform.executeAction(ctx, "enroll-student", {});
     expect(result.status).toBe("error");
-    expect(result.error).toContain("No action registry");
+    expect(result.errorCode).toBe("ACTION_UNKNOWN");
   });
 });

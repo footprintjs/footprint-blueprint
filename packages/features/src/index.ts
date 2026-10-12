@@ -84,3 +84,6 @@ export {
   buildDependencyTree,
   validateRegistry,
 } from "./dependencyGraph.js";
+
+// Immutable snapshots shared with downstream definition layers.
+export { immutableValue, immutableMap, immutableSet } from "./immutable.js";

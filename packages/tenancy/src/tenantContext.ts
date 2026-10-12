@@ -32,18 +32,20 @@ export type TenantContextInput = {
  * Create a validated, frozen tenant context.
  */
 export function createTenantContext(input: TenantContextInput): TenantContext {
-  if (!input.tenantId || typeof input.tenantId !== "string") {
-    throw new Error("tenantId is required and must be a non-empty string");
-  }
-  if (!input.unitId || typeof input.unitId !== "string") {
-    throw new Error("unitId is required and must be a non-empty string");
-  }
-
+  const required = (value: unknown, field: string): string => {
+    if (typeof value !== 'string' || !value.trim() || value.trim().length > 160) {
+      throw new Error(`${field} is required and must be a non-empty string of at most 160 characters`);
+    }
+    return value.trim();
+  };
+  const optional = (value: unknown, field: string): string | undefined => value === undefined ? undefined : required(value, field);
+  const campusId = optional(input.campusId, 'campusId');
+  const userId = optional(input.userId, 'userId');
   const ctx: TenantContext = {
-    tenantId: input.tenantId.trim(),
-    ...(input.campusId ? { campusId: input.campusId.trim() } : {}),
-    unitId: input.unitId.trim(),
-    ...(input.userId ? { userId: input.userId.trim() } : {}),
+    tenantId: required(input.tenantId, 'tenantId'),
+    ...(campusId !== undefined ? { campusId } : {}),
+    unitId: required(input.unitId, 'unitId'),
+    ...(userId !== undefined ? { userId } : {}),
   };
 
   return Object.freeze(ctx);

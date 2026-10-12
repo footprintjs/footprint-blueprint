@@ -122,12 +122,8 @@ describe("resolveProfileConfig", () => {
     expect(config.dependencyTree.get("attendance")).toContain("academics");
   });
 
-  it("returns empty config for unknown profile", () => {
-    const config = resolveProfileConfig(registry, "unknown");
-
-    expect(config.profileType).toBe("unknown");
-    expect(config.enabledModules.size).toBe(0);
-    expect(config.roles).toEqual([]);
+  it("rejects an unknown profile", () => {
+    expect(() => resolveProfileConfig(registry, "unknown")).toThrow("Unknown profile");
   });
 
   it("accepts module overrides", () => {
@@ -143,8 +139,8 @@ describe("resolveProfileConfig", () => {
   it("provides module definitions in config", () => {
     const config = resolveProfileConfig(registry, "dance");
 
-    expect(config.modules.get("students")).toBe(students);
-    expect(config.modules.get("attendance")).toBe(attendance);
+    expect(config.modules.get("students")).toEqual(students);
+    expect(config.modules.get("attendance")).toEqual(attendance);
     expect(config.modules.has("departments")).toBe(false);
   });
 
@@ -157,19 +153,14 @@ describe("resolveProfileConfig", () => {
     expect(() => resolveProfileConfig(reg, "circ")).toThrow("Circular dependency");
   });
 
-  it("returns warnings for unknown modules (not silent drops)", () => {
+  it("rejects unknown modules instead of returning a partially enabled profile", () => {
     const prof = defineProfile({
       type: "partial", displayName: "Partial",
       modules: ["students", "ghost_module"],
     });
     const reg = createModuleRegistry({ modules: [students], profileTypes: [prof] });
 
-    const config = resolveProfileConfig(reg, "partial");
-
-    expect(config.enabledModules).toContain("students");
-    expect(config.enabledModules).not.toContain("ghost_module");
-    expect(config.warnings.length).toBeGreaterThan(0);
-    expect(config.warnings.some((w) => w.type === "unknown_module" && w.moduleId === "ghost_module")).toBe(true);
+    expect(() => resolveProfileConfig(reg, "partial")).toThrow("ghost_module");
   });
 
   it("returns empty warnings for valid configs", () => {

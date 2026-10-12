@@ -46,9 +46,9 @@ const registry = createModuleRegistry({
 
 // Two tenants, three schools
 const store = createMemoryProfileStore([
-  { unitId: "acme-dance-1", profileType: "dance", createdAt: "2024-01-01" },
-  { unitId: "acme-tutor-1", profileType: "tutoring", createdAt: "2024-02-01" },
-  { unitId: "beta-dance-1", profileType: "dance", createdAt: "2024-03-01" },
+  { tenantId: "acme", revision: 0, unitId: "acme-dance-1", profileType: "dance", createdAt: "2024-01-01" },
+  { tenantId: "acme", revision: 0, unitId: "acme-tutor-1", profileType: "tutoring", createdAt: "2024-02-01" },
+  { tenantId: "beta", revision: 0, unitId: "beta-dance-1", profileType: "dance", createdAt: "2024-03-01" },
 ]);
 
 const resolver = createProfileResolver(registry, store);
@@ -114,8 +114,7 @@ describe("multi-tenant scenario: module override", () => {
   it("tutoring center with attendance override gets attendance", async () => {
     const customStore = createMemoryProfileStore([
       {
-        unitId: "custom-tutor",
-        profileType: "tutoring",
+        tenantId: "t1", revision: 0, unitId: "custom-tutor", profileType: "tutoring",
         moduleOverrides: ["students", "fees", "attendance"],
         createdAt: "2024-01-01",
       },

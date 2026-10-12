@@ -1,3 +1,4 @@
+import { immutableMap, immutableSet, immutableValue } from "./immutable.js";
 import type { ModuleDefinition, ValidationError } from "./types.js";
 
 /**
@@ -11,13 +12,15 @@ import type { ModuleDefinition, ValidationError } from "./types.js";
 export function resolveTransitiveDependencies(
   moduleIds: readonly string[],
   registry: ReadonlyMap<string, ModuleDefinition>
-): { resolved: Set<string>; errors: ValidationError[] } {
+): { resolved: ReadonlySet<string>; errors: readonly ValidationError[] } {
   const resolved = new Set<string>();
   const errors: ValidationError[] = [];
   const visiting = new Set<string>(); // cycle detection
+  const failed = new Set<string>();
 
-  function visit(id: string, chain: readonly string[]): void {
-    if (resolved.has(id)) return;
+  function visit(id: string, chain: readonly string[]): boolean {
+    if (resolved.has(id)) return true;
+    if (failed.has(id)) return false;
 
     if (visiting.has(id)) {
       errors.push({
@@ -26,7 +29,8 @@ export function resolveTransitiveDependencies(
         message: `Circular dependency detected: ${[...chain, id].join(" → ")}`,
         details: { chain: [...chain, id] },
       });
-      return;
+      failed.add(id);
+      return false;
     }
 
     const mod = registry.get(id);
@@ -36,22 +40,26 @@ export function resolveTransitiveDependencies(
         moduleId: id,
         message: `Module "${id}" is not registered`,
       });
-      return;
+      failed.add(id);
+      return false;
     }
 
     visiting.add(id);
+    let complete = true;
     for (const dep of mod.requires) {
-      visit(dep, [...chain, id]);
+      if (!visit(dep, [...chain, id])) complete = false;
     }
     visiting.delete(id);
+    if (!complete) { failed.add(id); return false; }
     resolved.add(id);
+    return true;
   }
 
   for (const id of moduleIds) {
     visit(id, []);
   }
 
-  return { resolved, errors };
+  return { resolved: immutableSet(resolved), errors: immutableValue(errors) };
 }
 
 /**
@@ -61,15 +69,15 @@ export function resolveTransitiveDependencies(
 export function buildDependencyTree(
   resolved: ReadonlySet<string>,
   registry: ReadonlyMap<string, ModuleDefinition>
-): Map<string, readonly string[]> {
+): ReadonlyMap<string, readonly string[]> {
   const tree = new Map<string, readonly string[]>();
   for (const id of resolved) {
     const mod = registry.get(id);
     if (mod) {
-      tree.set(id, mod.requires.filter((dep) => resolved.has(dep)));
+      tree.set(id, Object.freeze(mod.requires.filter((dep) => resolved.has(dep))));
     }
   }
-  return tree;
+  return immutableMap(tree);
 }
 
 /**

@@ -21,7 +21,7 @@ describe("large registry", () => {
     }
 
     const start = performance.now();
-    const registry = createModuleRegistry({ modules });
+    const registry = createModuleRegistry({ modules, profileTypes: [defineProfile({ type: "test", displayName: "Test", modules: [modules[0]!.id] }), defineProfile({ type: "custom", displayName: "Custom", modules: [modules[0]!.id] })] });
     const config = resolveProfileConfig(registry, "test", ["module-499"]);
     const elapsed = performance.now() - start;
 
@@ -46,7 +46,7 @@ describe("large registry", () => {
     }
 
     const allIds = modules.map((m) => m.id);
-    const registry = createModuleRegistry({ modules });
+    const registry = createModuleRegistry({ modules, profileTypes: [defineProfile({ type: "test", displayName: "Test", modules: [modules[0]!.id] }), defineProfile({ type: "custom", displayName: "Custom", modules: [modules[0]!.id] })] });
     const config = resolveProfileConfig(registry, "test", allIds);
 
     expect(config.enabledModules.size).toBe(101);
@@ -77,8 +77,9 @@ describe("deep dependency chains", () => {
 
 describe("empty and minimal configs", () => {
   it("handles school with zero modules", () => {
-    const registry = createModuleRegistry({ modules: [] });
-    const config = resolveProfileConfig(registry, "empty");
+    const mod = defineModule({ id: "only", name: "Only", domain: "test" });
+    const registry = createModuleRegistry({ modules: [mod], profileTypes: [defineProfile({ type: "empty", displayName: "Empty override", modules: [mod.id] })] });
+    const config = resolveProfileConfig(registry, "empty", []);
 
     expect(config.enabledModules.size).toBe(0);
     expect(config.terminology).toEqual({});
@@ -98,19 +99,13 @@ describe("empty and minimal configs", () => {
   it("handles unknown profile gracefully", () => {
     const mod = defineModule({ id: "x", name: "X", domain: "d" });
     const registry = createModuleRegistry({ modules: [mod] });
-    const config = resolveProfileConfig(registry, "nonexistent");
-
-    expect(config.profileType).toBe("nonexistent");
-    expect(config.enabledModules.size).toBe(0);
+    expect(() => resolveProfileConfig(registry, "nonexistent")).toThrow("Unknown profile");
   });
 
   it("handles module overrides with unknown module IDs", () => {
     const mod = defineModule({ id: "known", name: "Known", domain: "d" });
-    const registry = createModuleRegistry({ modules: [mod] });
-    const config = resolveProfileConfig(registry, "test", ["known", "unknown-mod"]);
-
-    expect(config.enabledModules).toContain("known");
-    expect(config.enabledModules).not.toContain("unknown-mod");
+    const registry = createModuleRegistry({ modules: [mod], profileTypes: [defineProfile({ type: "test", displayName: "Test", modules: ["known"] })] });
+    expect(() => resolveProfileConfig(registry, "test", ["known", "unknown-mod"])).toThrow("unknown-mod");
   });
 });
 
@@ -130,7 +125,7 @@ describe("all modules enabled", () => {
       );
     }
 
-    const registry = createModuleRegistry({ modules });
+    const registry = createModuleRegistry({ modules, profileTypes: [defineProfile({ type: "test", displayName: "Test", modules: [modules[0]!.id] }), defineProfile({ type: "custom", displayName: "Custom", modules: [modules[0]!.id] })] });
     const allIds = modules.map((m) => m.id);
     const config = resolveProfileConfig(registry, "custom", allIds);
 
