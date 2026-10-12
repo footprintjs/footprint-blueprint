@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdir, readFile, readdir, copyFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, readFile, readdir, copyFile, writeFile, mkdtemp, rm, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,7 @@ const output = args[1];
 const [major, minor] = process.versions.node.split('.').map(Number);
 assert.ok(major === 24 && minor >= 15, 'Build on Node 24.15–24.x.');
 const business = path.resolve(root, '../smallbusiness-footprint');
-const sources = ['features', 'tenancy', 'adapters', 'seed', 'actions', 'platform'].map(name => path.join(root, 'packages', name)).concat(business);
+const sources = [root, business];
 const packages = await Promise.all(sources.map(async directory => ({ directory, pkg: JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8')) })));
 const versions = new Map(packages.map(({ pkg }) => [pkg.name, pkg.version]));
 await mkdir(path.join(output, 'packages'), { recursive: true });
@@ -27,7 +27,7 @@ function run(command, parameters, cwd) {
   return execFileSync(command, parameters, { cwd, env: environment, encoding: 'utf8', maxBuffer: 12 * 1024 * 1024 });
 }
 for (const cwd of [root, business]) {
-  const parameters = ['pnpm', '--config.verify-deps-before-run=false', ...(cwd === root ? ['-r', 'run', 'build'] : ['run', 'build'])];
+  const parameters = ['pnpm', '--config.verify-deps-before-run=false', 'run', 'build'];
   await writeFile(path.join(output, 'verification', cwd === root ? 'blueprint-build.log' : 'smallbusiness-build.log'), run('corepack', parameters, cwd));
 }
 const artifacts = [];
@@ -75,16 +75,12 @@ await copyFile(path.join(business, 'examples/shared-evidence/package-template.js
 const exampleManifest = JSON.parse(await readFile(path.join(quickstart, 'package.json'), 'utf8'));
 for (const artifact of artifacts) exampleManifest.dependencies[artifact.name] = '../packages/' + artifact.file;
 await writeFile(path.join(quickstart, 'package.json'), JSON.stringify(exampleManifest, null, 2) + '\n');
-const docs = path.join(output, 'docs'); await mkdir(docs, { recursive: true });
-for (const file of ['RELEASE.md', 'QUICKSTART.md', 'CONSOLIDATION.md']) await copyFile(path.join(root, 'docs', file), path.join(docs, file));
-await copyFile(path.join(root, 'packages/actions/README.md'), path.join(docs, 'EVIDENCE-API.md'));
+const docs = path.join(output, 'docs');
+await cp(path.join(root, 'docs'), docs, { recursive: true });
+for (const file of ['LICENSE', 'README.md', 'CHANGELOG.md']) await copyFile(path.join(root, file), path.join(output, file));
 await copyFile(path.join(business, 'docs/INTEGRATION.md'), path.join(docs, 'SMB-INTEGRATION.md'));
-let guide = await readFile(path.join(docs, 'QUICKSTART.md'), 'utf8');
-guide = guide.replace('../packages/actions/README.md', 'EVIDENCE-API.md');
-await writeFile(path.join(docs, 'QUICKSTART.md'), guide);
-await copyFile(path.join(docs, 'QUICKSTART.md'), path.join(output, 'QUICKSTART.md'));
-let topGuide = await readFile(path.join(output, 'QUICKSTART.md'), 'utf8');
-topGuide = topGuide.replaceAll('(RELEASE.md)', '(docs/RELEASE.md)').replaceAll('(EVIDENCE-API.md)', '(docs/EVIDENCE-API.md)');
+const guide = await readFile(path.join(docs, 'QUICKSTART.md'), 'utf8');
+const topGuide = guide.replace(/\]\((?![a-zA-Z][a-zA-Z0-9+.-]*:|#|\/)([^)]+)\)/g, '](docs/$1)');
 await writeFile(path.join(output, 'QUICKSTART.md'), topGuide);
 const sourcesInfo = {};
 for (const [name, cwd] of [['blueprint', root], ['smallbusiness', business]]) sourcesInfo[name] = {

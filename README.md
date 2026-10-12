@@ -2,15 +2,28 @@
 
 **Define once, derive everything** — a domain-agnostic platform framework for building configurable multi-tenant systems.
 
-## Version 0.2 migration
+## One package, focused modules
 
-All packages pin the published `footprintjs@10.0.0` runtime and use Node 24.15–24.x, TypeScript 7 and pnpm 12.11.2. Actions execute real SDK stages. The prepared local release is Actions / Platform **0.3.2** and Features / Tenancy / Seed / Adapters **0.2.1**, used with `smallbusiness-footprint` **0.2.4**. These library packages have not been published to npm. This preparation changes documentation, package metadata and build-before-pack hooks; runtime source is unchanged from the tested migration and shared-evidence baseline.
+The prepared release is **`footprint-blueprint@0.4.0`**: one installation and one version for all six framework modules. The optional **`smallbusiness-footprint@0.3.0`** adds commerce definitions and operation ports. The separate `footprintjs@10.0.0` package remains the execution engine. These are local candidates; use the [tarball-kit quickstart](docs/QUICKSTART.md) until publication is verified.
 
-Start with the [tarball-kit quickstart](docs/QUICKSTART.md) to run reduced examples derived from booking decisions and Charming Cherubs publication. See the [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) for versions, verification and the separate Node 22 school compatibility path.
+Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
-Profile stores now accept the complete `{tenantId, campusId?, unitId}` scope and return a matching binding with a monotonically increasing `revision`. Definitions are immutable; caches derive configuration from strong binding reads, expire after 30 seconds by default, are bounded, and expose invalidation. Missing registry dependencies fail validation. Seed execution stops by default on failure; it does not provide a publication transaction.
+```ts
+import { defineModule, defineProfile } from 'footprint-blueprint/features';
+import { createEvidenceCollector } from 'footprint-blueprint/evidence';
+import { createPlatform } from 'footprint-blueprint/platform';
 
-Execution and tool discovery require a trusted host `authorizer`, an actual handler/adapter, enabled modules and strict input schemas. Missing authorization denies access. Role declarations alone do not grant access. The host owns authentication, CSRF, durable transactions and provider acknowledgements. Trace recording uses real SDK stages without private payloads by default and cannot turn a committed success into failure. See each package README for the updated contracts.
+// Load actions when your application reaches this point.
+const { createActionRegistry } = await import('footprint-blueprint/actions');
+```
+
+Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
+
+The [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) describe the two-artifact release and the separate Node 22 school compatibility path. The earlier seven-artifact kit is retained as a historical reference and is superseded by this packaging.
+
+Profile stores accept the complete `{tenantId, campusId?, unitId}` scope and return a matching binding with a monotonically increasing `revision`. Definitions are immutable; caches derive configuration from strong binding reads, expire after 30 seconds by default, are bounded, and expose invalidation. Missing registry dependencies fail validation. Seed execution stops by default on failure; it does not provide a publication transaction.
+
+Execution and tool discovery require a trusted host `authorizer`, an actual handler/adapter, enabled modules and strict input schemas. Missing authorization denies access. Role declarations alone do not grant access. The host owns authentication, CSRF, durable transactions and provider acknowledgements. Trace recording uses real SDK stages without private payloads by default and cannot turn an acknowledged success into failure. See the module guides below for those contracts.
 
 ## The problem
 
@@ -75,25 +88,31 @@ Layer 6: platform    → Orchestration — single entry point wiring all layers
 ```
 
 ```
-features ← tenancy ← seed ← adapters ← actions ← platform
-                                           ↑
-                                      footprintjs
+footprint-blueprint
+  ├─ features      ├─ tenancy      ├─ seed
+  ├─ adapters      ├─ actions      ├─ platform
+  └─ evidence (direct pure collector entry)
+
+footprintjs → separate execution engine used by Actions
 ```
 
-Dependencies flow strictly upward. No cycles, no peer deps between layers. Each package is independently testable, publishable, and replaceable.
+The modules remain separate source and test boundaries inside one package. Internal imports use relative module paths, and consumers use the public subpaths. They share one release version; `footprintjs` remains a separate runtime dependency.
 
-## Packages
+## Module entry points
 
-| Package | Layer | Purpose | Tests |
-|---------|-------|---------|-------|
-| [@footprint/features](packages/features/) | 1 | Module registry — define modules, profiles, feature gates, terminology | 136 |
-| [@footprint/tenancy](packages/tenancy/) | 2 | Multi-tenant context resolution, profile binding, gate middleware | 73 |
-| [@footprint/seed](packages/seed/) | 3 | Seed plan generation and execution per profile per module | 43 |
-| [@footprint/adapters](packages/adapters/) | 4 | Capability contracts, adapter registry, service bridge | 42 |
-| [@footprint/actions](packages/actions/) | 5 | Action registry, MCP/OpenAPI export, traced execution | 103 |
-| [@footprint/platform](packages/platform/) | 6 | Orchestration — single entry point wiring all layers | 43 |
+| Import path | Purpose | Guide |
+| --- | --- | --- |
+| `footprint-blueprint/features` | Module registry, profiles, gates and terminology | [Features](docs/features.md) |
+| `footprint-blueprint/tenancy` | Scoped profile binding and gate middleware | [Tenancy](docs/tenancy.md) |
+| `footprint-blueprint/seed` | Dependency-ordered seed plans and application | [Seed](docs/seed.md) |
+| `footprint-blueprint/adapters` | Capabilities, adapter routing and service bridge | [Adapters](docs/adapters.md) |
+| `footprint-blueprint/actions` | Action registry, descriptors and traced execution | [Actions](docs/actions.md) |
+| `footprint-blueprint/platform` | Orchestration of all six modules | [Platform](docs/platform.md) |
+| `footprint-blueprint/evidence` | Pure receipt collector and validator | [Evidence API](docs/actions.md#shared-execution-evidence) |
 
-**440 tests** across 6 packages. Every package has unit, scenario, property-based, boundary, and security tests.
+`footprint-blueprint/actions/evidence` is an alias of the same pure Evidence entry. The root entry provides Platform's convenience exports. Advanced module-specific APIs remain available from their own subpaths.
+
+The inherited test suite contains 440 Blueprint tests. The optional commerce library contains 217 more. Consult the generated release validation record for the actual results from the consolidated candidate.
 
 ## How it works
 
@@ -102,7 +121,7 @@ Dependencies flow strictly upward. No cycles, no peer deps between layers. Each 
 Modules are the atomic units of your platform. Each module declares what it needs, what terms it uses, what roles it introduces, and what seed data it carries.
 
 ```typescript
-import { defineModule } from "@footprint/features";
+import { defineModule } from "footprint-blueprint/features";
 
 const scheduling = defineModule({
   id: "scheduling",
@@ -126,7 +145,7 @@ const scheduling = defineModule({
 Profiles are customer archetypes. Each profile cherry-picks which modules it needs.
 
 ```typescript
-import { defineProfile } from "@footprint/features";
+import { defineProfile } from "footprint-blueprint/features";
 
 const danceSchool = defineProfile({
   type: "dance",
@@ -194,7 +213,7 @@ const custom = await actionRegistry.exportActions(discovery, myCustomExporter);
 
 ### 7. Wire everything with one call (Layer 6)
 
-The platform package is the glue. One `createPlatform()` call wires all layers together.
+The Platform module is the glue. One `createPlatform()` call wires all layers together.
 
 ```typescript
 const platform = createPlatform({
@@ -243,7 +262,7 @@ footprint-blueprint defines modules, profiles, gates, adapters and actions. Its 
 A domain-specific wrapper (e.g., SchoolFootprint) brings them together: blueprint modules become footprintjs services, each service is a flowchart with stages, and the manifest tracks which services ran and what happened.
 
 ```
-footprintjs             → execution engine (flowcharts, traces, AI-explainability)
+footprintjs             → execution engine (flowcharts and execution recordings)
 footprint-blueprint      → configuration framework (modules, profiles, adapters, actions)
 domain-specific wrapper  → brings them together for a specific domain
 your app                 → consumes the wrapper
@@ -251,7 +270,7 @@ your app                 → consumes the wrapper
 
 ## Testing strategy
 
-Every package has 5 types of tests:
+The framework suite covers five kinds of checks:
 
 - **Unit** — pure function logic, isolated
 - **Scenario** — realistic end-to-end workflows
@@ -261,13 +280,13 @@ Every package has 5 types of tests:
 
 ## Source setup
 
-Use Node 24.15–24.x and pnpm 12.11.2. For a consumer example, use the [release-kit quickstart](docs/QUICKSTART.md). For this independent Blueprint workspace:
+Use Node 24.15–24.x and pnpm 12.11.2. For a consumer example, use the [release-kit quickstart](docs/QUICKSTART.md). From the Blueprint repository root:
 
 ```bash
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm test        # run all 440 tests
-pnpm typecheck   # type-check all packages
-pnpm build       # build all packages
+pnpm build
+pnpm typecheck
+pnpm test
 ```
 
 ## License

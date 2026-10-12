@@ -1,15 +1,97 @@
 {
   "name": "footprint-blueprint",
-  "private": true,
-  "description": "Define modules once, derive everything \u2014 a domain-agnostic platform framework",
+  "version": "0.4.0",
+  "description": "Modular platform framework with shared execution evidence and focused import paths",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./features": {
+      "types": "./dist/features/index.d.ts",
+      "import": "./dist/features/index.js",
+      "default": "./dist/features/index.js"
+    },
+    "./tenancy": {
+      "types": "./dist/tenancy/index.d.ts",
+      "import": "./dist/tenancy/index.js",
+      "default": "./dist/tenancy/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js",
+      "default": "./dist/adapters/index.js"
+    },
+    "./seed": {
+      "types": "./dist/seed/index.d.ts",
+      "import": "./dist/seed/index.js",
+      "default": "./dist/seed/index.js"
+    },
+    "./actions": {
+      "types": "./dist/actions/index.d.ts",
+      "import": "./dist/actions/index.js",
+      "default": "./dist/actions/index.js"
+    },
+    "./platform": {
+      "types": "./dist/platform/index.d.ts",
+      "import": "./dist/platform/index.js",
+      "default": "./dist/platform/index.js"
+    },
+    "./evidence": {
+      "types": "./dist/actions/evidence.d.ts",
+      "import": "./dist/actions/evidence.js",
+      "default": "./dist/actions/evidence.js"
+    },
+    "./actions/evidence": {
+      "types": "./dist/actions/evidence.d.ts",
+      "import": "./dist/actions/evidence.js",
+      "default": "./dist/actions/evidence.js"
+    }
+  },
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean"
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "footprintjs": "10.0.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3",
+    "@types/node": "24.19.2"
   },
   "engines": {
     "node": ">=24.15.0 <25"
   },
-  "packageManager": "pnpm@12.11.2"
+  "packageManager": "pnpm@12.11.2",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs"
+  ],
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/footprintjs/footprint-blueprint.git"
+  },
+  "homepage": "https://github.com/footprintjs/footprint-blueprint#readme",
+  "bugs": {
+    "url": "https://github.com/footprintjs/footprint-blueprint/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

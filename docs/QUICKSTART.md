@@ -1,6 +1,6 @@
 # Run a workflow and inspect its evidence
 
-Use the prepared release kit to try two small examples derived from real applications: booking decisions and Charming Cherubs storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The SDK packages in this release have not been published to npm; the kit installs them from its included tarballs.
+Use the prepared release kit to try two small examples derived from real applications: booking decisions and Charming Cherubs storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.4.0` and optional `smallbusiness-footprint@0.3.0` candidates install from the kit’s two included tarballs; npm publication is pending.
 
 ## Start
 
@@ -14,11 +14,23 @@ npm run publication
 npm test
 ```
 
-The first install downloads pinned third-party npm dependencies unless they are already cached. The Footprint library tarballs are included locally. The examples run with sample data and in-memory storage; they need no hosting account, API key or model. Each command prints JSON to standard output and writes no result files. The publication SDK prints expected failure diagnostics to standard error for the rejection scenarios; a successful assertion result and exit status 0 indicate that the example passed.
+The first install downloads pinned third-party npm dependencies unless they are already cached. Both library tarballs are included locally. `footprintjs@10.0.0` remains a separate pinned npm dependency. The examples run with sample data and in-memory storage; they need no hosting account, API key or model. Each command prints JSON to standard output and writes no result files. The publication SDK prints expected failure diagnostics to standard error for the rejection scenarios; a successful assertion result and exit status 0 indicate that the example passed.
+
+## Import only the entry you need
+
+```js
+import { defineModule } from 'footprint-blueprint/features';
+import { createEvidenceCollector } from 'footprint-blueprint/evidence';
+import { createPlatform } from 'footprint-blueprint/platform';
+
+const { createActionRegistry } = await import('footprint-blueprint/actions');
+```
+
+The first two focused entries avoid loading the executor graph. Static imports load their dependency graph immediately; dynamic `import()` defers loading until executed. The root entry loads Platform and its layers. Installation downloads all ordinary package dependencies regardless of which entry you later import. SMB is optional for commerce-specific ports; its main entry is for backend execution and `smallbusiness-footprint/metadata` is the browser metadata entry.
 
 ## Booking example
 
-The booking example uses actual FootPrint.js stages and an in-memory SQLite database, adding the pure `@footprint/actions/evidence` collector around its host-owned workflow. It shows an accepted booking, an overlap rejection and a cancellation. Follow each result into its receipt:
+The booking example uses actual FootPrint.js stages and an in-memory SQLite database, adding the pure `footprint-blueprint/evidence` collector around its host-owned workflow. It shows an accepted booking, an overlap rejection and a cancellation. Follow each result into its receipt:
 
 - Observations describe the application checks that were actually reported.
 - An `applied` effect is added only after SQLite reports the actual changed row count, before the enclosing transaction commits. The receipt does not promote that observation to a `committed` phase.
@@ -67,4 +79,4 @@ Default capture is metadata-only. Both examples leave request values, actor iden
 
 Another client can later invoke the same authenticated application boundary and read these results. Tool descriptors help describe the available actions; an agent, MCP server, transport, model or retry worker is not added by this quickstart.
 
-See [the release runbook](RELEASE.md) for package versions and source verification, and the [Actions evidence guide](../packages/actions/README.md) for the API contract.
+See [the release runbook](RELEASE.md) for package versions and source verification, and the [Actions evidence guide](actions.md#shared-execution-evidence) for the API contract.

@@ -1,19 +1,27 @@
 # Changelog
 
-## Prepared release: Actions / Platform 0.3.2; other packages 0.2.1
+## 0.4.0 — prepared single-package release
 
-Prepared on 2026-10-12. These packages are local release candidates and have not been published to npm.
+Prepared on 2026-10-12. This is a local release candidate; publication is pending.
 
-- Consolidated the tested FootPrint.js 10 migration and shared execution-evidence implementation into the canonical `footprintjs/footprint-blueprint` checkout.
-- Added repository, issue, public-access and package-file metadata, plus a build-before-pack hook.
-- Added release, consolidation and quickstart documentation and per-package changelogs.
-- Added a tarball-based quickstart with reduced examples derived from the booking app and Charming Cherubs publication boundary.
+- Consolidated Features, Tenancy, Adapters, Seed, Actions and Platform into one public `footprint-blueprint` package with one version and focused import paths.
+- Added `footprint-blueprint/evidence` as a direct pure collector/validator entry, with `footprint-blueprint/actions/evidence` as an alias.
+- Retained the root entry as a convenience export of the complete Platform; use module subpaths for focused loading and dynamic imports for loading on demand.
+- Moved module source to `src/<module>` and module guides to `docs/<module>.md`. The inherited standalone-package changelogs remain under `docs/history`.
+- Prepared a two-artifact kit with optional `smallbusiness-footprint@0.3.0`, reduced booking/publication examples, source provenance and verification records.
+- Kept `footprintjs@10.0.0` separate and pinned. Source builds use Node 24.15–24.x and pnpm 12.11.2.
 
-Runtime source is unchanged from the tested local Actions / Platform 0.3.1 and Features / Tenancy / Seed / Adapters 0.2.0 baseline. The patch versions identify the new package metadata and documentation; they do not change receipt schema 1.
+This packaging supersedes the earlier seven-package release kit. Replace former `@footprint/<module>` imports with `footprint-blueprint/<module>` when migrating a modern consumer. Existing legacy school and booking consumers remain on their separate compatibility path. Receipt schema 1 and host-owned transaction, authorization and privacy boundaries remain unchanged.
+
+The inherited verification suites contain 440 Blueprint tests and 217 SMB tests. The generated release record identifies the actual validation results for this candidate, including focused loader checks and clean consumer installation.
+
+## Earlier standalone-package preparation — historical
+
+The previous local preparation used Actions / Platform 0.3.2, Features / Tenancy / Seed / Adapters 0.2.1, and SMB 0.2.4. That kit and its source commits remain historical references. See [module changelog history](docs/history/) for those package-specific versions.
 
 ## Shared evidence baseline: Actions / Platform 0.3.1
 
-- Added immutable, bounded `ExecutionEvidence` receipts and the pure `@footprint/actions/evidence` collector and validator.
+- Added immutable, bounded `ExecutionEvidence` receipts and the pure `@footprint/actions/evidence` collector (the historical import path) and validator.
 - Added the optional handler `EvidenceReporter`, trusted projection callbacks and explicit observations, effect phases, run links and capture limitations.
 - Preserved native FootPrint recordings alongside portable receipts. Capture failures cannot reverse an acknowledged operation.
 - Contained rejected native promises returned accidentally by synchronous capture callbacks, including promises from another JavaScript realm.

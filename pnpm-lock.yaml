@@ -164,16 +164,8 @@ settings:
 
 importers:
 
-  .: {}
-
-  packages/actions:
+  .:
     dependencies:
-      '@footprint/adapters':
-        specifier: workspace:*
-        version: link:../adapters
-      '@footprint/features':
-        specifier: workspace:*
-        version: link:../features
       ajv:
         specifier: 8.20.0
         version: 8.20.0
@@ -197,130 +189,11 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/adapters:
-    dependencies:
-      footprintjs:
-        specifier: 10.0.0
-        version: 10.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 24.19.2
-        version: 24.19.2
-      fast-check:
-        specifier: 4.10.2
-        version: 4.10.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
-
-  packages/features:
-    dependencies:
-      footprintjs:
-        specifier: 10.0.0
-        version: 10.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 24.19.2
-        version: 24.19.2
-      fast-check:
-        specifier: 4.10.2
-        version: 4.10.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
-
-  packages/platform:
-    dependencies:
-      '@footprint/actions':
-        specifier: workspace:*
-        version: link:../actions
-      '@footprint/adapters':
-        specifier: workspace:*
-        version: link:../adapters
-      '@footprint/features':
-        specifier: workspace:*
-        version: link:../features
-      '@footprint/seed':
-        specifier: workspace:*
-        version: link:../seed
-      '@footprint/tenancy':
-        specifier: workspace:*
-        version: link:../tenancy
-      footprintjs:
-        specifier: 10.0.0
-        version: 10.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 24.19.2
-        version: 24.19.2
-      fast-check:
-        specifier: 4.10.2
-        version: 4.10.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
-
-  packages/seed:
-    dependencies:
-      '@footprint/features':
-        specifier: workspace:*
-        version: link:../features
-      footprintjs:
-        specifier: 10.0.0
-        version: 10.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 24.19.2
-        version: 24.19.2
-      fast-check:
-        specifier: 4.10.2
-        version: 4.10.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
-
-  packages/tenancy:
-    dependencies:
-      '@footprint/features':
-        specifier: workspace:*
-        version: link:../features
-      footprintjs:
-        specifier: 10.0.0
-        version: 10.0.0
-    devDependencies:
-      '@types/node':
-        specifier: 24.19.2
-        version: 24.19.2
-      fast-check:
-        specifier: 4.10.2
-        version: 4.10.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
-
 packages:
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
     engines: {node: '>=6.0.0'}
-
-  '@jridgewell/sourcemap-codec@1.5.5':
-    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -878,14 +751,12 @@ snapshots:
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
-  '@jridgewell/sourcemap-codec@1.5.5': {}
-
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@oxc-project/types@0.153.0': {}
 
