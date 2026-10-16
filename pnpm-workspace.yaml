@@ -1,2 +1,5 @@
 packages:
-  - "packages/*"
+  - .
+minimumReleaseAgeExclude:
+  - footprintjs@10.1.0
+  - foottrace@1.1.0

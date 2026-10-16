@@ -2,6 +2,29 @@
 
 **Define once, derive everything** — a domain-agnostic platform framework for building configurable multi-tenant systems.
 
+## One package, focused modules
+
+This prepared **`footprint-blueprint@0.4.1`** release pairs with **`smallbusiness-footprint@0.4.0`** and pins the separate `footprintjs@10.1.0` engine. Publication and final validation are pending. The existing six framework modules and focused import paths remain available.
+
+Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
+
+```ts
+import { defineModule, defineProfile } from 'footprint-blueprint/features';
+import { createEvidenceCollector } from 'footprint-blueprint/evidence';
+import { createPlatform } from 'footprint-blueprint/platform';
+
+// Load actions when your application reaches this point.
+const { createActionRegistry } = await import('footprint-blueprint/actions');
+```
+
+Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
+
+The [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) describe the two-artifact release and the separate Node 22 school compatibility path. The earlier seven-artifact kit is retained as a historical reference and is superseded by this packaging.
+
+Profile stores accept the complete `{tenantId, campusId?, unitId}` scope and return a matching binding with a monotonically increasing `revision`. Definitions are immutable; caches derive configuration from strong binding reads, expire after 30 seconds by default, are bounded, and expose invalidation. Missing registry dependencies fail validation. Seed execution stops by default on failure; it does not provide a publication transaction.
+
+Execution and tool discovery require a trusted host `authorizer`, an actual handler/adapter, enabled modules and strict input schemas. Missing authorization denies access. Role declarations alone do not grant access. The host owns authentication, CSRF, durable transactions and provider acknowledgements. Trace recording uses real SDK stages without private payloads by default and cannot turn an acknowledged success into failure. See the module guides below for those contracts.
+
 ## The problem
 
 You're building a platform that serves different types of customers. Each customer type needs a different set of features, different terminology, different behavior for the same operations, and different seed data to get started.
@@ -65,25 +88,31 @@ Layer 6: platform    → Orchestration — single entry point wiring all layers
 ```
 
 ```
-features ← tenancy ← seed ← adapters ← actions ← platform
-                                           ↑
-                                      footprintjs
+footprint-blueprint
+  ├─ features      ├─ tenancy      ├─ seed
+  ├─ adapters      ├─ actions      ├─ platform
+  └─ evidence (direct pure collector entry)
+
+footprintjs → separate execution engine used by Actions
 ```
 
-Dependencies flow strictly upward. No cycles, no peer deps between layers. Each package is independently testable, publishable, and replaceable.
+The modules remain separate source and test boundaries inside one package. Internal imports use relative module paths, and consumers use the public subpaths. They share one release version; `footprintjs` remains a separate runtime dependency.
 
-## Packages
+## Module entry points
 
-| Package | Layer | Purpose | Tests |
-|---------|-------|---------|-------|
-| [@footprint/features](packages/features/) | 1 | Module registry — define modules, profiles, feature gates, terminology | 129 |
-| [@footprint/tenancy](packages/tenancy/) | 2 | Multi-tenant context resolution, profile binding, gate middleware | 62 |
-| [@footprint/seed](packages/seed/) | 3 | Seed plan generation and execution per profile per module | 37 |
-| [@footprint/adapters](packages/adapters/) | 4 | Capability contracts, adapter registry, service bridge | 39 |
-| [@footprint/actions](packages/actions/) | 5 | Action registry, MCP/OpenAPI export, traced execution | 49 |
-| [@footprint/platform](packages/platform/) | 6 | Orchestration — single entry point wiring all layers | 34 |
+| Import path | Purpose | Guide |
+| --- | --- | --- |
+| `footprint-blueprint/features` | Module registry, profiles, gates and terminology | [Features](docs/features.md) |
+| `footprint-blueprint/tenancy` | Scoped profile binding and gate middleware | [Tenancy](docs/tenancy.md) |
+| `footprint-blueprint/seed` | Dependency-ordered seed plans and application | [Seed](docs/seed.md) |
+| `footprint-blueprint/adapters` | Capabilities, adapter routing and service bridge | [Adapters](docs/adapters.md) |
+| `footprint-blueprint/actions` | Action registry, descriptors and traced execution | [Actions](docs/actions.md) |
+| `footprint-blueprint/platform` | Orchestration of all six modules | [Platform](docs/platform.md) |
+| `footprint-blueprint/evidence` | Pure receipt collector and validator | [Evidence API](docs/actions.md#shared-execution-evidence) |
 
-**350 tests** across 6 packages. Every package has unit, scenario, property-based, boundary, and security tests.
+`footprint-blueprint/actions/evidence` is an alias of the same pure Evidence entry. The root entry provides Platform's convenience exports. Advanced module-specific APIs remain available from their own subpaths.
+
+The inherited test suite contains 440 Blueprint tests. The optional commerce library contains 217 more. Consult the generated release validation record for the actual results from the consolidated candidate.
 
 ## How it works
 
@@ -92,7 +121,7 @@ Dependencies flow strictly upward. No cycles, no peer deps between layers. Each 
 Modules are the atomic units of your platform. Each module declares what it needs, what terms it uses, what roles it introduces, and what seed data it carries.
 
 ```typescript
-import { defineModule } from "@footprint/features";
+import { defineModule } from "footprint-blueprint/features";
 
 const scheduling = defineModule({
   id: "scheduling",
@@ -116,7 +145,7 @@ const scheduling = defineModule({
 Profiles are customer archetypes. Each profile cherry-picks which modules it needs.
 
 ```typescript
-import { defineProfile } from "@footprint/features";
+import { defineProfile } from "footprint-blueprint/features";
 
 const danceSchool = defineProfile({
   type: "dance",
@@ -170,22 +199,29 @@ const result = await bridge.execute("schedule-class", input, {
 Actions are exported as MCP tool definitions (for LLMs) or OpenAPI specs (for REST clients) via the SchemaExporter adapter pattern.
 
 ```typescript
-// Built-in MCP export
-const tools = actionRegistry.toMCPTools(config.enabledModules);
-
-// Built-in OpenAPI export
-const openapi = actionRegistry.exportActions(config.enabledModules, createOpenAPIExporter());
-
-// Custom export format
-const custom = actionRegistry.exportActions(config.enabledModules, myCustomExporter);
+const discovery = {
+  enabledModules: config.enabledModules,
+  context: { tenantId: "tenant-1", unitId: "studio-1", profileType: "dance", userId: session.userId },
+  authorizer: ({ action, context, purpose }) => verifiedPolicy.can(context.userId, action.id, purpose),
+  hasImplementation: action => registeredHandlers.has(action.id),
+};
+const tools = await actionRegistry.toMCPTools(discovery);
+const openapi = await actionRegistry.exportActions(discovery, createOpenAPIExporter());
+const custom = await actionRegistry.exportActions(discovery, myCustomExporter);
+// These are descriptors. The host supplies an authenticated MCP/HTTP transport.
 ```
 
 ### 7. Wire everything with one call (Layer 6)
 
-The platform package is the glue. One `createPlatform()` call wires all layers together.
+The Platform module is the glue. One `createPlatform()` call wires all layers together.
 
 ```typescript
-const platform = createPlatform({ registry, profileStore, adapterRegistry, actionRegistry });
+const platform = createPlatform({
+  registry, profileStore, adapterRegistry, actionRegistry,
+  authorizer: ({ action, context, purpose }) => verifiedPolicy.can(context.userId, action.id, purpose),
+  handlers: { "enroll-student": async (_id, input, context) => enrollment.enroll(input, context) },
+  traceRecorder,
+});
 
 const setup = await platform.setupUnit(ctx);          // config + seed plan
 const gate = await platform.gateCheck(ctx, ["fees"]); // feature gate
@@ -219,14 +255,14 @@ Nothing in this framework is specific to schools, e-commerce, healthcare, or any
 
 ## Relationship to footprintjs
 
-[footprintjs](https://github.com/footprintjs/footPrint) is the execution engine — it turns flowcharts into running code with automatic causal traces for AI reasoning.
+[footprintjs](https://github.com/footprintjs/footPrint) is the execution engine: it runs flowcharts and records the stages and state made visible by the application. Shared execution receipts supplement those native recordings with host-reported observations, effect phases, outcomes and related runs. Their coverage and limitations remain explicit; they do not establish complete database causality or private model reasoning.
 
-footprint-blueprint is the configuration layer — it defines **what** exists (modules, profiles, gates, adapters, actions) but not **how** things execute.
+footprint-blueprint defines modules, profiles, gates, adapters and actions. Its action executor runs deterministic authorize/validate/execute/acknowledge stages with FootprintJS 10. Domain-specific workflows still own the business operations and storage/provider transactions.
 
 A domain-specific wrapper (e.g., SchoolFootprint) brings them together: blueprint modules become footprintjs services, each service is a flowchart with stages, and the manifest tracks which services ran and what happened.
 
 ```
-footprintjs             → execution engine (flowcharts, traces, AI-explainability)
+footprintjs             → execution engine (flowcharts and execution recordings)
 footprint-blueprint      → configuration framework (modules, profiles, adapters, actions)
 domain-specific wrapper  → brings them together for a specific domain
 your app                 → consumes the wrapper
@@ -234,7 +270,7 @@ your app                 → consumes the wrapper
 
 ## Testing strategy
 
-Every package has 5 types of tests:
+The framework suite covers five kinds of checks:
 
 - **Unit** — pure function logic, isolated
 - **Scenario** — realistic end-to-end workflows
@@ -242,15 +278,23 @@ Every package has 5 types of tests:
 - **Boundary** — limits, edge cases, performance
 - **Security** — validation, injection prevention, immutability
 
-## Setup
+## Source setup
+
+Use Node 24.15–24.x and pnpm 12.11.2. For a consumer example, use the [release-kit quickstart](docs/QUICKSTART.md). From the Blueprint repository root:
 
 ```bash
-pnpm install
-pnpm test        # run all 350 tests
-pnpm typecheck   # type-check all packages
-pnpm build       # build all packages
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm build
+pnpm typecheck
+pnpm test
 ```
 
 ## License
 
 MIT
+
+## Caller execution controls
+
+`ActionExecutorOptions.executionOptions` and `PlatformConfig.executionOptions` accept an optional synchronous host callback receiving `{actionId, context}`. It returns the engine's `signal`, `timeoutMs`, `deadline` and an `env` containing only `signal`, `deadline`, `traceparent`, `traceId` and `operationId`. The callback is trusted application configuration; tool input and `context.meta` cannot select these controls. No budget is added when it is omitted.
+
+Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. It does not add retries, storage journaling or provider policy. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.
