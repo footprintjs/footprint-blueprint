@@ -1,4 +1,5 @@
 import { FlowChartBuilder, FlowChartExecutor, MetricRecorder } from 'footprintjs';
+import { footprintRuntimeVersion } from '../runtimeVersion.js';
 import { immutableValue } from '../features/index.js';
 import type { ServiceBridge } from '../adapters/index.js';
 import type { ActionRegistry } from './actionRegistry.js';
@@ -6,6 +7,7 @@ import { ActionAccessError, ActionInputError, validateActionInput } from './vali
 import { createEvidenceCollector } from './evidence.js';
 import type { EvidenceCollectorOptions, ExecutionEvidence } from './evidence.js';
 import type { ActionAuthorizer, ActionExecutionContext, ActionHandler, ActionHandlerRegistry, ActionResult, ActionTrace, ExecutionTrace, TraceRecorder } from './types.js';
+import { captureExecutionRunOptions, type ExecutionRunOptions } from './executionOptions.js';
 export type ActionExecutorOptions = {
   /** Trusted server/app callback. Omitting it denies every execution. */
   authorizer?: ActionAuthorizer;
@@ -19,6 +21,8 @@ export type ActionExecutorOptions = {
   projectEvidenceActor?: (context: ActionExecutionContext) => string | undefined;
   /** Opt-in synchronous request projection; raw input is never recorded by default. */
   projectEvidenceRequest?: (input: unknown, context: ActionExecutionContext) => unknown;
+  /** Trusted request-local engine controls, never read from action input or context.meta. No limits are added by default. */
+  executionOptions?: (request: Readonly<{ actionId: string; context: ActionExecutionContext }>) => ExecutionRunOptions | undefined;
 };
 export type ActionExecutor = { execute(actionId: string, input: unknown, context: ActionExecutionContext, handler?: ActionHandler): Promise<ActionResult> };
 /** Consume genuine native promises across realms without reading ordinary thenables. */
@@ -38,6 +42,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
   const evidenceOptions = Object.freeze({ ...options.evidenceOptions });
   const projectActor = options.projectEvidenceActor;
   const projectRequest = options.projectEvidenceRequest;
+  const executionOptions = options.executionOptions;
   const reportObserver = (error: unknown) => {
     try {
       const result: unknown = onTraceError?.(error);
@@ -121,7 +126,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
       runtime.setRedactionPolicy({ keys: ['input', 'args', 'result', 'output', 'error', 'message', 'cause', 'meta', 'userId'] });
       const metrics = new MetricRecorder('action-stage-metrics');
       runtime.attachScopeRecorder(metrics);
-      try { await runtime.run(); } catch (error) { if (!failure && !acknowledged) failure = error; else if (acknowledged) reportObserver(error); }
+      try { await runtime.run(captureExecutionRunOptions(executionOptions?.(Object.freeze({ actionId, context })))); } catch (error) { if (!failure && !acknowledged) failure = error; else if (acknowledged) reportObserver(error); }
       const completedAt = Date.now();
       let executionTrace: ExecutionTrace | undefined;
       let executionSnapshot: unknown;
@@ -152,7 +157,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
           startedAt: new Date(startedAt).toISOString(), completedAt: new Date(completedAt).toISOString(),
           ...(acknowledged ? {} : { errorMessage: 'Action execution rejected' }),
           ...(executionSnapshot !== undefined ? { executionSnapshot } : {}),
-          ...(evidence ? { evidence } : {}), runtime: { library: 'footprintjs', version: '10.0.0' },
+          ...(evidence ? { evidence } : {}), runtime: { library: 'footprintjs', version: footprintRuntimeVersion },
           stageMetrics: [...metrics.getMap().values()].map(metric => ({ stageName: metric.stageName, durationMs: metric.duration })),
         }) as ExecutionTrace;
         if (recorder) try { await recorder.record(executionTrace, Object.freeze({ entityType: action.domain, entityId: action.id, ...telemetryScope })); } catch (error) { reportObserver(error); }

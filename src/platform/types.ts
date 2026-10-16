@@ -44,6 +44,8 @@ export type PlatformConfig = {
   readonly projectEvidenceActor?: ActionExecutorOptions['projectEvidenceActor'];
   /** Explicit request opt-in, evaluated after policy and schema validation. */
   readonly projectEvidenceRequest?: ActionExecutorOptions['projectEvidenceRequest'];
+  /** Optional host-owned signal, deadline and correlation passed through to the execution engine. */
+  readonly executionOptions?: ActionExecutorOptions['executionOptions'];
   readonly resolverOptions?: ProfileResolverOptions;
 };
 

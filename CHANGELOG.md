@@ -1,4 +1,22 @@
+## 0.4.1 — 2026-10-16 (prepared; publication pending)
+
+- Pin FootprintJS 10.1.0 and retain the reviewed host-owned execution controls.
+- Read actual runtime metadata from the public installed SDK package manifest; no private version export is required.
+- Validate the release kit against installed engine/record versions and portable shared dependencies before building.
+- Preserve authorization, provider adapters, execution evidence and acknowledged writes.
+
+Publication and final stable-package validation are pending.
+
 # Changelog
+
+## 0.4.1-gamma.1 — private coordinated engine candidate
+
+- Pin the reviewed `footprintjs@10.1.0-gamma.1` runtime without changing default action behavior.
+- Read trace runtime version from the engine export rather than a hardcoded application value.
+- Add optional host-owned deadline, signal and correlation pass-through for Actions and Platform, with a closed payload-free boundary.
+- Preserve existing authorization, evidence, adapter and acknowledged-write invariants.
+
+This is a local Gamma candidate, not an npm publication.
 
 ## 0.4.0 — prepared single-package release
 

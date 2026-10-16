@@ -7,6 +7,8 @@ import { mkdir, readFile, readdir, copyFile, writeFile, mkdtemp, rm, cp } from '
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { validateReleaseRuntime } from './release-contract.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -17,7 +19,15 @@ const [major, minor] = process.versions.node.split('.').map(Number);
 assert.ok(major === 24 && minor >= 15, 'Build on Node 24.15–24.x.');
 const business = path.resolve(root, '../smallbusiness-footprint');
 const sources = [root, business];
-const packages = await Promise.all(sources.map(async directory => ({ directory, pkg: JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8')) })));
+const packages = await Promise.all(sources.map(async directory => {
+  const require = createRequire(path.join(directory, 'package.json'));
+  const engineManifest = require.resolve('footprintjs/package.json');
+  const engineRequire = createRequire(engineManifest);
+  return { directory, pkg: JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8')),
+    runtime: { footprintjs: require('footprintjs/package.json').version, foottrace: engineRequire('foottrace/package.json').version } };
+}));
+// Resolve before any build or output: a stale or mixed installation cannot label a release.
+const runtime = validateReleaseRuntime(packages);
 const versions = new Map(packages.map(({ pkg }) => [pkg.name, pkg.version]));
 await mkdir(path.join(output, 'packages'), { recursive: true });
 await mkdir(path.join(output, 'verification'), { recursive: true });
@@ -42,7 +52,7 @@ for (const { directory, pkg } of packages) {
     assert.equal(packed.name, pkg.name); assert.equal(packed.version, pkg.version);
     assert.equal(packed.publishConfig?.access, 'public');
     assert.equal(packed.engines?.node, '>=24.15.0 <25');
-    assert.equal(packed.dependencies?.footprintjs, '10.0.0');
+    assert.equal(packed.dependencies?.footprintjs, runtime.footprintjs);
     for (const [dependency, version] of Object.entries(packed.dependencies ?? {})) {
       assert.ok(!/^(workspace:|file:|link:)/.test(version), `Unresolved source dependency: ${dependency}.`);
       if (versions.has(dependency)) assert.equal(version, versions.get(dependency));
@@ -74,6 +84,8 @@ for (const file of ['booking.mjs', 'publication.mjs', 'shared.mjs']) await copyF
 await copyFile(path.join(business, 'examples/shared-evidence/package-template.json'), path.join(quickstart, 'package.json'));
 const exampleManifest = JSON.parse(await readFile(path.join(quickstart, 'package.json'), 'utf8'));
 for (const artifact of artifacts) exampleManifest.dependencies[artifact.name] = '../packages/' + artifact.file;
+exampleManifest.dependencies.footprintjs = runtime.footprintjs;
+exampleManifest.dependencies.foottrace = runtime.foottrace;
 await writeFile(path.join(quickstart, 'package.json'), JSON.stringify(exampleManifest, null, 2) + '\n');
 const docs = path.join(output, 'docs');
 await cp(path.join(root, 'docs'), docs, { recursive: true });
@@ -88,6 +100,6 @@ for (const [name, cwd] of [['blueprint', root], ['smallbusiness', business]]) so
   branch: run('git', ['branch', '--show-current'], cwd).trim(), commit: run('git', ['rev-parse', 'HEAD'], cwd).trim(),
   dirty: Boolean(run('git', ['status', '--porcelain'], cwd).trim()),
 };
-await writeFile(path.join(output, 'RELEASE.json'), JSON.stringify({ preparedAt: new Date().toISOString(), published: false, node: process.version, footprintjs: '10.0.0', sources: sourcesInfo, artifacts }, null, 2) + '\n');
+await writeFile(path.join(output, 'RELEASE.json'), JSON.stringify({ preparedAt: new Date().toISOString(), published: false, node: process.version, ...runtime, sources: sourcesInfo, artifacts }, null, 2) + '\n');
 await writeFile(path.join(output, 'packages/SHA256SUMS'), artifacts.map(item => `${item.sha256}  ${item.file}`).join('\n') + '\n');
 console.log('Local packages and quickstart prepared. Generate its npm lockfile, verify a clean consumer, and record validation before publication.');

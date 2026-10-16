@@ -27,6 +27,8 @@ export type { ActionRegistry, ActionRegistryInput } from "./actionRegistry.js";
 // Executor
 export { createActionExecutor } from "./actionExecutor.js";
 export type { ActionExecutor, ActionExecutorOptions } from "./actionExecutor.js";
+export { captureExecutionRunOptions } from './executionOptions.js';
+export type { ExecutionRunOptions } from './executionOptions.js';
 
 // Schema exporters (adapter pattern)
 export { createMCPExporter, createOpenAPIExporter } from "./exporters.js";

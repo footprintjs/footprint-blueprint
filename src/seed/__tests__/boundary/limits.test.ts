@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { defineModule, defineProfile, createModuleRegistry, resolveProfileConfig } from "../../../features/index.js";
 import { generateSeedPlan, executeSeedPlan } from "../../index.js";
 
@@ -46,13 +46,16 @@ describe("boundary: execution with slow applier", () => {
     const config = resolveProfileConfig(registry, "t");
     const plan = generateSeedPlan(config, "u1");
 
-    const result = await executeSeedPlan(plan, {
-      async apply(entry) {
-        await new Promise((r) => setTimeout(r, 10));
-        return { moduleId: entry.moduleId, status: "success", recordsCreated: 1 };
-      },
-    });
-
-    expect(result.duration).toBeGreaterThanOrEqual(10);
+    vi.useFakeTimers();
+    try {
+      const pending = executeSeedPlan(plan, {
+        async apply(entry) {
+          await new Promise((r) => setTimeout(r, 10));
+          return { moduleId: entry.moduleId, status: "success", recordsCreated: 1 };
+        },
+      });
+      await vi.advanceTimersByTimeAsync(10);
+      expect((await pending).duration).toBe(10);
+    } finally { vi.useRealTimers(); }
   });
 });

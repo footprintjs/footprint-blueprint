@@ -4,7 +4,7 @@
 
 ## One package, focused modules
 
-The prepared release is **`footprint-blueprint@0.4.0`**: one installation and one version for all six framework modules. The optional **`smallbusiness-footprint@0.3.0`** adds commerce definitions and operation ports. The separate `footprintjs@10.0.0` package remains the execution engine. These are local candidates; use the [tarball-kit quickstart](docs/QUICKSTART.md) until publication is verified.
+This prepared **`footprint-blueprint@0.4.1`** release pairs with **`smallbusiness-footprint@0.4.0`** and pins the separate `footprintjs@10.1.0` engine. Publication and final validation are pending. The existing six framework modules and focused import paths remain available.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -292,3 +292,9 @@ pnpm test
 ## License
 
 MIT
+
+## Caller execution controls
+
+`ActionExecutorOptions.executionOptions` and `PlatformConfig.executionOptions` accept an optional synchronous host callback receiving `{actionId, context}`. It returns the engine's `signal`, `timeoutMs`, `deadline` and an `env` containing only `signal`, `deadline`, `traceparent`, `traceId` and `operationId`. The callback is trusted application configuration; tool input and `context.meta` cannot select these controls. No budget is added when it is omitted.
+
+Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. It does not add retries, storage journaling or provider policy. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.

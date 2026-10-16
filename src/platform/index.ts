@@ -103,6 +103,8 @@ export type {
 // footprint-blueprint/actions
 export { createActionRegistry, createActionExecutor, validateActionInput, ActionInputError, ActionAccessError } from "../actions/index.js";
 export { createEvidenceCollector, validateExecutionEvidence, EXECUTION_EVIDENCE_LIMITATIONS } from "../actions/index.js";
+export { captureExecutionRunOptions } from '../actions/index.js';
+export type { ExecutionRunOptions } from '../actions/index.js';
 export type {
   ActionDefinition,
   ActionParameter,

@@ -27,6 +27,7 @@ export function createPlatform(config: PlatformConfig): Platform {
     evidenceOptions: config.evidenceOptions,
     projectEvidenceActor: config.projectEvidenceActor,
     projectEvidenceRequest: config.projectEvidenceRequest,
+    executionOptions: config.executionOptions,
   }) : undefined;
   const hasImplementation = (action: ActionDefinition, profileType: string) => Object.hasOwn(handlers, action.id) || Boolean(action.capabilityId && bridge?.hasAdapter(action.capabilityId, profileType));
   const resolveAction = async (suppliedContext: TenantContext, actionId: string) => {

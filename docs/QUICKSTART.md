@@ -1,6 +1,6 @@
 # Run a workflow and inspect its evidence
 
-Use the prepared release kit to try two small examples derived from real applications: booking decisions and Charming Cherubs storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.4.0` and optional `smallbusiness-footprint@0.3.0` candidates install from the kit’s two included tarballs; npm publication is pending.
+Use the prepared release kit to try two small examples derived from real applications: booking decisions and storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.4.1` and optional `smallbusiness-footprint@0.4.0` candidates install from the kit’s two included tarballs; npm publication is pending.
 
 ## Start
 
@@ -14,7 +14,7 @@ npm run publication
 npm test
 ```
 
-The first install downloads pinned third-party npm dependencies unless they are already cached. Both library tarballs are included locally. `footprintjs@10.0.0` remains a separate pinned npm dependency. The examples run with sample data and in-memory storage; they need no hosting account, API key or model. Each command prints JSON to standard output and writes no result files. The publication SDK prints expected failure diagnostics to standard error for the rejection scenarios; a successful assertion result and exit status 0 indicate that the example passed.
+The first install downloads pinned third-party npm dependencies unless they are already cached. Both library tarballs are included locally. `footprintjs@10.1.0` remains a separate pinned npm dependency. The examples run with sample data and in-memory storage; they need no hosting account, API key or model. Each command prints JSON to standard output and writes no result files. The publication SDK prints expected failure diagnostics to standard error for the rejection scenarios; a successful assertion result and exit status 0 indicate that the example passed.
 
 ## Import only the entry you need
 

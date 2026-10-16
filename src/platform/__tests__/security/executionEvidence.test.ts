@@ -40,4 +40,14 @@ describe('platform evidence configuration', () => {
     expect(result.status).toBe('error'); expect(result.evidence).toBeUndefined();
     expect(result.executionTrace).toBeUndefined(); expect(projectRequest).not.toHaveBeenCalled();
   });
+
+  it('forwards trusted engine controls after resolving the unit without taking controls from action payloads', async () => {
+    const controls = vi.fn(() => ({ deadline: Date.now() - 1 }));
+    const handler = vi.fn(async () => 'saved');
+    const platform = createPlatform({ registry: createTestRegistry(), profileStore: createTestProfileStore(), actionRegistry: actions,
+      authorizer: () => true, executionOptions: controls, handlers: { reserve: handler } });
+    const result = await platform.executeAction(context, 'reserve', { resourceId: 'resource-1' });
+    expect(result.status).toBe('error'); expect(handler).not.toHaveBeenCalled();
+    expect(controls).toHaveBeenCalledWith({ actionId: 'reserve', context: expect.objectContaining({ profileType: 'dance', tenantId: 't1' }) });
+  });
 });

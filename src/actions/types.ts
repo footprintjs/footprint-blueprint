@@ -114,7 +114,7 @@ export type ExecutionTrace = {
   readonly narrative?: readonly string[];
   /** Structured narrative entries */
   readonly narrativeEntries?: readonly unknown[];
-  readonly runtime?: { readonly library: "footprintjs"; readonly version: "10.0.0" };
+  readonly runtime?: { readonly library: "footprintjs"; readonly version: string };
   readonly stageMetrics?: readonly { readonly stageName: string; readonly durationMs: number }[];
   /** Shared evidence reported by trusted application ports, separate from SDK state. */
   readonly evidence?: ExecutionEvidence;

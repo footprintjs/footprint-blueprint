@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FlowChartExecutor } from 'footprintjs';
+import footprintPackage from 'footprintjs/package.json' with { type: 'json' };
 import { createActionRegistry } from '../../actionRegistry.js';
 import { createActionExecutor } from '../../actionExecutor.js';
 import { validateActionInput, ActionInputError } from '../../validation.js';
@@ -37,7 +38,7 @@ describe('trusted runtime boundary', () => {
     expect(new Set(results.map(result => result.executionTrace?.runId)).size).toBe(2);
     for (const result of results) {
       expect(result.status).toBe('success'); expect(result.result).toEqual({ privateToken: 'provider-secret' });
-      expect(result.executionTrace?.runtime).toEqual({ library: 'footprintjs', version: '10.0.0' });
+      expect(result.executionTrace?.runtime).toEqual({ library: 'footprintjs', version: footprintPackage.version });
       expect(result.executionTrace?.stageMetrics?.map(metric => metric.stageName)).toEqual(['AuthorizeAction', 'ValidateInput', 'ExecuteAction', 'AcknowledgeAction']);
       const snapshot = result.executionTrace?.executionSnapshot as { commitLog: { stageId: string }[]; sharedState: unknown };
       expect(snapshot.commitLog.map(commit => commit.stageId)).toEqual(['authorize-action', 'validate-input', 'execute-action', 'acknowledge-action']);
