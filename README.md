@@ -4,7 +4,7 @@
 
 ## One package, focused modules
 
-This local **`footprint-blueprint@0.5.0`** candidate pairs with the local `smallbusiness-footprint@0.5.0` candidate, adds reusable stored-failure diagnostics, and pins the separate `footprintjs@10.1.0` engine. It has not been published. The existing six framework modules and focused import paths remain available.
+This local **`footprint-blueprint@0.7.0`** candidate pairs with the local `smallbusiness-footprint@0.7.0` candidate, adds incremental object-store records and provider lookup references, and pins the separate `footprintjs@10.1.0` engine with `foottrace@1.1.0`. It has not been published. The existing six framework modules and focused import paths remain available.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -301,7 +301,7 @@ Hosts that need real provider attempt evidence can opt into [provider-boundary r
 
 `ActionExecutorOptions.executionOptions` and `PlatformConfig.executionOptions` accept an optional synchronous host callback receiving `{actionId, context}`. It returns the engine's `signal`, `timeoutMs`, `deadline` and an `env` containing only `signal`, `deadline`, `traceparent`, `traceId` and `operationId`. The callback is trusted application configuration; tool input and `context.meta` cannot select these controls. No budget is added when it is omitted.
 
-Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. It does not add retries, storage journaling or provider policy. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.
+Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. These execution controls add no retries, storage journaling or provider policy; native storage is a separate opt-in below. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.
 
 
 ### Incremental native records in object storage
@@ -309,3 +309,8 @@ Blueprint captures this narrow envelope and delegates validation, cancellation, 
 The optional `footprint-blueprint/records/object-store` import supplies `createObjectRecordSink` and `readObjectRecord`. Inject your own immutable object-storage port; no cloud SDK, credential lookup, polling or model call is built in. Pass the sink to FootprintJS10.1's native executor sink option. The read-only reader accepts only `get`/`list` and uses Foottrace1.1's stored-record reader, without reconstructing a snapshot.
 
 The adapter sends each entry as it arrives, caps queued bytes and concurrent requests, and stops diagnostic I/O at its flush deadline. Already acknowledged entries survive a killed writer; pending entries may be lost. A terminal marker, native gaps, unread rows and missing object sequences are reported separately. Configure privacy rules before execution and use opaque deployment/run IDs. See [the design and test contract](docs/records-object-store-design.md) for port types, limits, isolation and the real process-kill proof. Hosts should allow their native flush wait to exceed the adapter's own flush timeout so cancellation finishes before return.
+
+
+`ActionExecutorOptions.recordSink` and `PlatformConfig.recordSink` optionally receive a synchronous host factory: `({actionId, recordId}) => nativeSink | undefined`. Each execution receives a fresh diagnostic UUID independent of its native engine run ID. The factory gets no customer input or context. Native recording uses `onFailure: 'report'` and manual final flush; setup, entry and drain failures remain diagnostic. Existing acknowledged results and evidence/trace shapes are preserved, while `executionSnapshot.sink` records native loss counts. `onTraceError` receives fixed diagnostic messages.
+
+`recordSinkFlushTimeoutMs` bounds the final action drain from 0 through 2000 milliseconds (default 250). Use an action wait longer than the adapter's own flush deadline—for example, adapter 750ms and action 1000ms—so the adapter can abort its queue before return. The factory already knows the storage locator through `recordId`; no new business or customer capability is created.
