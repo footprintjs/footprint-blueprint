@@ -297,6 +297,8 @@ MIT
 
 ## Caller execution controls
 
+Hosts that need real provider attempt evidence can opt into [provider-boundary recording](docs/diagnostics-runtime.md) with `footprint-blueprint/diagnostics/runtime`. The request-local collector binds actual SDK transport observations to native FootprintJS attempt events, keeps logical calls separate from physical reports, and adds no retry loop, storage or model dependency.
+
 `ActionExecutorOptions.executionOptions` and `PlatformConfig.executionOptions` accept an optional synchronous host callback receiving `{actionId, context}`. It returns the engine's `signal`, `timeoutMs`, `deadline` and an `env` containing only `signal`, `deadline`, `traceparent`, `traceId` and `operationId`. The callback is trusted application configuration; tool input and `context.meta` cannot select these controls. No budget is added when it is omitted.
 
 Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. It does not add retries, storage journaling or provider policy. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.

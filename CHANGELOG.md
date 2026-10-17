@@ -1,3 +1,10 @@
+## 0.6.0 — local provider-evidence candidate (not published)
+
+- Add the explicit `footprint-blueprint/diagnostics/runtime` request-local native boundary collector, without changing the pure diagnostics runtime export surface.
+- Bind logical SDK calls and real transport observations from public FootprintJS call/onAttempt APIs, with safe normalization, bounded frozen snapshots and explicit omitted/late/in-flight coverage.
+- Extend schema-1 recordings with optional physical evidence and coverage, preserving legacy inputs. Validate genuine record kinds, identities, sources and timing before diagnosis.
+- Separate logical calls from physical reports and engine-observed interpretation from SDK retry policy. Preserve unknown write effects and never infer a provider outage, guaranteed cancellation or zero sends from absent evidence.
+
 ## 0.5.0 — local diagnostics candidate (not published)
 
 - Add the pure, typed `footprint-blueprint/diagnostics` subpath with adapter-boundary normalization and deterministic stored-record diagnosis.
