@@ -1,6 +1,6 @@
 {
   "name": "footprint-blueprint",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Modular platform framework with shared execution evidence and focused import paths",
   "type": "module",
   "main": "./dist/index.js",
@@ -50,6 +50,11 @@
       "types": "./dist/actions/evidence.d.ts",
       "import": "./dist/actions/evidence.js",
       "default": "./dist/actions/evidence.js"
+    },
+    "./diagnostics": {
+      "types": "./dist/diagnostics/index.d.ts",
+      "import": "./dist/diagnostics/index.js",
+      "default": "./dist/diagnostics/index.js"
     }
   },
   "scripts": {
