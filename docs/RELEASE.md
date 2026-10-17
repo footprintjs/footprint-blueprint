@@ -1,75 +1,58 @@
-# Prepared release runbook
+# Local candidate and release runbook
 
-This runbook describes the single-package local candidate prepared on 2026-10-12. It is not a record of npm publication. Use the included tarball kit until the names, account ownership, candidate versions and registry publication are verified. The earlier seven-artifact kit remains a historical reference and is superseded by this release.
+The current locally prepared candidates are Blueprint 0.5.0 and Smallbusiness 0.5.0. Local validation and packing do not establish npm publication or a Gamma deployment. Keep the prior published release available until the new archives have been reviewed and their consumers verified.
 
-## Version matrix
-
-| Package | Prepared version | Runtime dependencies |
+| Package | Candidate | Exact runtime dependencies |
 | --- | --- | --- |
-| `footprint-blueprint` | 0.4.0 | `footprintjs@10.0.0`, AJV and formats |
-| `smallbusiness-footprint` | 0.3.0 | `footprint-blueprint@0.4.0`, `footprintjs@10.0.0`, `zod@4.6.5` |
+| `footprint-blueprint` | 0.5.0 | `footprintjs@10.1.0`, `ajv@8.20.0`, `ajv-formats@3.0.1` |
+| `smallbusiness-footprint` | 0.5.0 | `footprint-blueprint@0.5.0`, `footprintjs@10.1.0`, `zod@4.6.5` |
 
-Blueprint contains all six framework modules and the pure Evidence entry. The commerce package is optional. `footprintjs` stays separate as the execution engine. Use Node 24.15–24.x and pnpm 12.11.2 for source builds. SMB's source dependency uses `workspace:*`; packing must replace it with exact `footprint-blueprint@0.4.0`.
+Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the reviewed `vendor/footprint-blueprint-0.5.0.tgz`; its public manifest keeps the exact numeric dependency. The packed archive must not include that development override or vendor archive.
 
-This release changes the package layout and public import paths. It preserves receipt schema 1 and the migrated runtime's contracts. The move from older 0.1 libraries remains an API and Node-runtime migration; those applications are not automatically upgraded.
+## Verify source and build
 
-## Local source verification
-
-Place the canonical `footprint-blueprint` and `smallbusiness-footprint` checkouts beside one another. Install and verify Blueprint from its repository root first:
+Run these commands from each repository root, Blueprint first and then Smallbusiness:
 
 ```sh
-cd /absolute/path/to/footprint-blueprint
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm build
-pnpm typecheck
-pnpm test
-```
-
-Then verify the commerce repository from its own root:
-
-```sh
-cd /absolute/path/to/smallbusiness-footprint
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm build
-pnpm typecheck
-pnpm test
-```
-
-SMB's workspace includes its sibling Blueprint root. These commands intentionally run each root package's scripts, rather than recursive workspace commands. The inherited suite contains 440 Blueprint and 217 SMB tests, including privacy and boundary regressions. Use the generated release validation record for actual candidate results. Also verify public exports and the runtime loader graph: Features and Evidence must not load the FootPrint executor or unrelated modules. Loading the root or Platform entry loads the complete platform graph. Test counts and typechecks are evidence of specific checks, not a security certification.
-
-Build before packing. Both publishable packages have a `prepack` hook; preparation also builds Blueprint before SMB. Inspect tarballs for compiled code, declaration files, license, README, changelog and valid export targets. Packed dependencies must have neither unresolved `workspace:` references nor machine-specific paths.
-
-## Prepare another local kit
-
-After the two root installations, run the helper from Blueprint. Use a new output directory for a new candidate:
-
-```sh
-node scripts/prepare-local-release.mjs --output /absolute/path/to/release-kit
-cd /absolute/path/to/release-kit/quickstart
-npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-npm ci --ignore-scripts --no-audit --no-fund
+npm run typecheck
 npm test
+npm run build
+node --test scripts/release/guards.test.mjs
 ```
 
-The helper builds and packs the two libraries, verifies packed dependencies and export targets, copies the examples and documentation, and records source revisions and artifact hashes. It refuses to replace an existing tarball with different bytes under the same version. The npm commands create the consumer lockfile and test a fresh installation. Record the source-suite, public-export, loader-graph and clean-install results before distributing the kit. This process does not publish packages.
+Blueprint also runs `npm run test:release`. Smallbusiness runs its seven synthetic quickstart scenarios with `npm run quickstart:booking` and `npm run quickstart:publication`. These commands use local fixture providers; do not supply live payment, shipping, cloud or model credentials.
 
-From a clean extraction of the complete kit, follow [the quickstart](QUICKSTART.md) with `npm ci --ignore-scripts`, both examples and `npm test`. Verify recorded hashes before accepting the artifacts.
+Diagnostics must preserve genuine native run, stage and physical attempt identity, explicit retry decisions, missing evidence and unknown side effects. Test custom non-commerce labels and alternate brands, not just one storefront. Verify that Blueprint does not import commerce or provider code, and that normal commerce runtime entries cannot reach Smallbusiness's explicit `/testing` entry.
 
-## Publication for a later authorized release
+## Pack the reviewed candidates
 
-Publication is a separate maintainer action. Inspect current registry metadata, package-name ownership, authentication, versions, repository state and the candidate's validation record first. These are unscoped package names; the new design does not require an `@footprint` organization. Confirm that the maintainer can publish both names. Review and commit the release source, then publish the exact reviewed tarballs rather than rebuilding during publication.
+Build first. The CI verification step uses the already checked build and disables lifecycle hooks while packing:
 
-Publish in dependency order:
+```sh
+npm pack --ignore-scripts --pack-destination release
+```
 
-1. `footprint-blueprint@0.4.0`.
-2. `smallbusiness-footprint@0.3.0`.
+The resulting files are `footprint-blueprint-0.5.0.tgz` and `smallbusiness-footprint-0.5.0.tgz`. Record SHA-256 and SHA-512 integrity, inspect public manifests and all exported runtime/type files, and compare them with the reviewed source. Store exact identities in `scripts/release/reviewed.json`. Updating review metadata does not publish a package.
 
-Verify registry availability, version and exact dependency metadata after the first package before proceeding to SMB. Package metadata declares public access. An approved artifact can be published with `npm publish <reviewed-package.tgz> --access public --registry=https://registry.npmjs.org`; preparation executes no publication commands.
+For each archive, run the built-in-only verifier:
 
-If a version already exists, compare it with the reviewed candidate. Do not overwrite it or substitute another version's validation. Inspect registry state before resuming a partially failed publication. After publication, verify a clean registry-only consumer installation and both examples, then update application references and the release record to those verified artifacts and source revisions.
+```sh
+node scripts/release/run.mjs archive /absolute/path/to/reviewed-package.tgz
+```
 
-## Application and runtime limits
+The workflow checks the pinned npm version, frozen dependencies, source tests, build and exact archive hashes. It does not accept an arbitrary archive just because its version matches. A source or byte change requires fresh review and validation before updating the recorded identity.
 
-The full booking app retains its pure-helper backport for Node 22.13 and existing SchoolFootprint APIs. This release does not replace that SDK. Charming Cherubs' authoritative publication port owns durable compare-and-swap, guards and transactions; the quickstart models its boundary with local fixtures. Charming's full-app inner workflow retains a redacted v3 trace projection, whereas the reduced publication example uses two actual modern Platform actions.
+## Verify consumers before Gamma
 
-Effects are host-reported facts with explicit phases. Receipts do not prove complete database causality, authenticity, private model reasoning or a durable retry guarantee. Hosts own authentication, storage transactions, idempotency, providers, transport and recovery. This release adds no agent, model, hosting resources or deployment.
+Install or extract the exact packed archives into a fresh isolated consumer, then verify focused public imports and their TypeScript declarations. A fresh install may need registry access for pinned third-party dependencies. The diagnostic runner itself needs no network, model, cloud account or API key.
+
+In Charming Cherubs, pin both archives in the root, backend, frontend and investigator manifests; regenerate locks and update the reviewed artifact manifest. Run the footprint artifact verifier, library boundary tests, local failure matrix, backend checkout/publication regressions and frontend checks. Keep the app-owned admin preview and `en.json` separate from library code. Confirm the production bundle excludes testing fixtures and the development preview. Preserve shared runtime identity rather than accepting a hidden duplicate Footprint installation with the same version.
+
+## Publication is a separate action
+
+Publish only when authorized, in dependency order: Blueprint 0.5.0 first, then Smallbusiness 0.5.0. The explicit GitHub workflow publication job requires the owning repository, main branch, manual dispatch and OIDC. It checks registry identity and exact dependency integrity before publishing the reviewed archive; it does not rebuild during publication.
+
+If a version already exists, verify it is byte-identical. Never overwrite it or treat an uncertain publish result as permission to resend. After publication, verify a fresh registry-only consumer and the existing quickstart examples. A local tarball test must not be reported as npm publication, and local validation must complete before any Gamma rollout.
+
+Hosts retain authentication, authorization, storage transactions, durable records, retention, idempotency and provider reconciliation. A trace shape or correlation link does not prove authenticity, an upstream outage or a final payment outcome. Native unknown effects remain unknown even when a sidecar omits or contradicts them. No scheduler, model, mail sender or live fault endpoint is created by this release.

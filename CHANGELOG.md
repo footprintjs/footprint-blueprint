@@ -1,3 +1,10 @@
+## 0.5.0 — local diagnostics candidate (not published)
+
+- Add the pure, typed `footprint-blueprint/diagnostics` subpath with adapter-boundary normalization and deterministic stored-record diagnosis.
+- Generalize logical boundary labels without rendering arbitrary names in findings; keep provider-specific classification in trusted adapter hooks.
+- Preserve schema-version-1 input, strict native run/stage/physical attempt bindings, logical retry recovery, JSON pointer evidence, unknown write effects and isolated diagnostic failures.
+- Export browser-compatible contracts and neutral `AUTH_REJECTION_RECORDED` findings; no cloud, model, React or application dependency is introduced.
+
 ## 0.4.1 — 2026-10-16 (prepared; publication pending)
 
 - Pin FootprintJS 10.1.0 and retain the reviewed host-owned execution controls.

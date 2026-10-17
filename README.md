@@ -4,20 +4,21 @@
 
 ## One package, focused modules
 
-This prepared **`footprint-blueprint@0.4.1`** release pairs with **`smallbusiness-footprint@0.4.0`** and pins the separate `footprintjs@10.1.0` engine. Publication and final validation are pending. The existing six framework modules and focused import paths remain available.
+This local **`footprint-blueprint@0.5.0`** candidate pairs with the local `smallbusiness-footprint@0.5.0` candidate, adds reusable stored-failure diagnostics, and pins the separate `footprintjs@10.1.0` engine. It has not been published. The existing six framework modules and focused import paths remain available.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
 ```ts
 import { defineModule, defineProfile } from 'footprint-blueprint/features';
 import { createEvidenceCollector } from 'footprint-blueprint/evidence';
+import { diagnoseFailureRecording } from 'footprint-blueprint/diagnostics';
 import { createPlatform } from 'footprint-blueprint/platform';
 
 // Load actions when your application reaches this point.
 const { createActionRegistry } = await import('footprint-blueprint/actions');
 ```
 
-Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
+Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Diagnostics uses the public engine error classifier but executes no flow or provider request. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
 
 The [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) describe the two-artifact release and the separate Node 22 school compatibility path. The earlier seven-artifact kit is retained as a historical reference and is superseded by this packaging.
 
@@ -108,6 +109,7 @@ The modules remain separate source and test boundaries inside one package. Inter
 | `footprint-blueprint/adapters` | Capabilities, adapter routing and service bridge | [Adapters](docs/adapters.md) |
 | `footprint-blueprint/actions` | Action registry, descriptors and traced execution | [Actions](docs/actions.md) |
 | `footprint-blueprint/platform` | Orchestration of all six modules | [Platform](docs/platform.md) |
+| `footprint-blueprint/diagnostics` | Pure stored-failure validation and deterministic findings | [Diagnostics API](docs/diagnostics.md) |
 | `footprint-blueprint/evidence` | Pure receipt collector and validator | [Evidence API](docs/actions.md#shared-execution-evidence) |
 
 `footprint-blueprint/actions/evidence` is an alias of the same pure Evidence entry. The root entry provides Platform's convenience exports. Advanced module-specific APIs remain available from their own subpaths.

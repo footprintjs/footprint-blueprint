@@ -49,8 +49,8 @@ jobs:
       - name: Pack and check the reviewed immutable archive
         run: |
           mkdir -p release
-          "$RUNNER_TEMP/release-tools/node_modules/@pnpm/exe.linux-x64/pnpm" --config.manage-package-manager-versions=false --config.verify-deps-before-run=false pack --pack-destination release
-          mv release/footprint-blueprint-0.4.1.tgz release/package.tgz
+          npm pack --ignore-scripts --pack-destination release
+          mv release/footprint-blueprint-0.5.0.tgz release/package.tgz
           node scripts/release/run.mjs archive release/package.tgz
           git diff --exit-code
       - name: Check the registry immediately before an explicit publication

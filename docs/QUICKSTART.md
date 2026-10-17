@@ -1,6 +1,6 @@
 # Run a workflow and inspect its evidence
 
-Use the prepared release kit to try two small examples derived from real applications: booking decisions and storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.4.1` and optional `smallbusiness-footprint@0.4.0` candidates install from the kit’s two included tarballs; npm publication is pending.
+Use the prepared release kit to try two small examples derived from real applications: booking decisions and storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.5.0` and optional `smallbusiness-footprint@0.5.0` candidates install from the kit’s two included tarballs; npm publication is pending.
 
 ## Start
 
