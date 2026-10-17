@@ -109,6 +109,8 @@ export interface BoundaryRecorderCoverage {
   readonly droppedEvents: number;
   readonly unboundObservations: number;
   readonly lateReports: number;
+  /** Explicit host omission notices, not a known count of omitted wire attempts. Optional on earlier records. */
+  readonly omittedObservations?: number;
   readonly physicalAttemptCounts: 'reported-only';
   readonly sdkRetryDecisions: 'unknown';
   readonly externalDelivery: 'unknown';

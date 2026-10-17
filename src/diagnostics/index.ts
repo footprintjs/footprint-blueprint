@@ -194,10 +194,11 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   }
   if (record.coverage !== undefined) {
     const c = record.coverage;
-    exact(c, ['logicalCalls', 'physicalObservations', 'inFlightCalls', 'droppedEvents', 'unboundObservations', 'lateReports', 'physicalAttemptCounts', 'sdkRetryDecisions', 'externalDelivery']);
+    exact(c, ['logicalCalls', 'physicalObservations', 'inFlightCalls', 'droppedEvents', 'unboundObservations', 'lateReports', 'physicalAttemptCounts', 'sdkRetryDecisions', 'externalDelivery'], ['omittedObservations']);
     if (['logicalCalls', 'physicalObservations', 'inFlightCalls', 'droppedEvents', 'unboundObservations', 'lateReports'].some(key => !integer(c[key as keyof typeof c]))
       || c.physicalAttemptCounts !== 'reported-only' || c.sdkRetryDecisions !== 'unknown' || c.externalDelivery !== 'unknown'
       || c.logicalCalls < events.filter(e => e.linked?.record.kind === 'call').length || c.physicalObservations < physicalIds.size
+      || c.omittedObservations !== undefined && !integer(c.omittedObservations)
       || c.inFlightCalls > c.logicalCalls || record.physicalEvidence === undefined) fail();
   }
   const causes: FailureFinding[] = [], consequences: FailureFinding[] = [], diagnosticFailures: FailureFinding[] = [], recommendations: string[] = [], unknowns: string[] = [];
@@ -210,7 +211,7 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   if (!events.length) unknowns.push('No adapter boundary evidence was recorded; no absence of external effects is established.');
   if (events.some(e => !e.linked)) unknowns.push('Some boundary events lack a verifiable physical attempt reference.');
   const partialResponse = record.physicalEvidence?.some(p => p.phase !== 'response-complete' && native.attempts.get(p.attemptId)?.record.outcome === 'ok') ?? false;
-  const incompleteBoundary = partialResponse || record.coverage !== undefined && (record.coverage.inFlightCalls > 0 || record.coverage.droppedEvents > 0 || record.coverage.unboundObservations > 0 || record.coverage.lateReports > 0);
+  const incompleteBoundary = partialResponse || record.coverage !== undefined && (record.diagnostics.observer === 'failed' || record.coverage.inFlightCalls > 0 || record.coverage.droppedEvents > 0 || record.coverage.unboundObservations > 0 || record.coverage.lateReports > 0 || (record.coverage.omittedObservations ?? 0) > 0);
   if (incompleteBoundary) unknowns.push('Boundary collection is incomplete: unfinished work, omitted events or late SDK reports prevent complete transport accounting.');
   if (partialResponse) unknowns.push('A successful transport observation covers only dispatch or response headers; complete response handling is not recorded.');
   if ([...native.attempts.values()].some(a => a.record.kind === 'observed')) unknowns.push('Observed attempt decisions are the engine interpretation, not the SDK retry policy. Transport observations do not independently prove external effects or provider delivery.');

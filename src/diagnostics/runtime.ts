@@ -36,7 +36,10 @@ export interface BoundaryCallContext {
   timeLeftMs(): number;
   /** Reports evidence only; never starts or authorizes a retry. Malformed/late reports are diagnostic omissions. */
   observePhysical(report: PhysicalAttemptObservation): void;
+  /** Explicit collection gap. Counts an omission notice, never a guessed number of dispatches. */
+  markIncomplete(reason: BoundaryObservationOmission): void;
 }
+export type BoundaryObservationOmission = 'multiple-dispatches' | 'response-unconsumed' | 'observation-unavailable';
 type NativeCall = <T>(target: string, work: (attempt: AttemptContext) => T | Promise<T>, policy?: RetryPolicy, options?: CallOptions) => Promise<T>;
 /** Both the ScopeFacade and TypedScope public spellings are accepted. No engine internals are accessed. */
 export type BoundaryScope = { readonly call: NativeCall } | { readonly $call: NativeCall };
@@ -87,7 +90,7 @@ export function createBoundaryRecorder(options: BoundaryRecorderOptions = {}): B
   const live = new Set<PendingCall>();
   const rows: BoundaryEvidence[] = [], physical: PhysicalBoundaryEvidence[] = [];
   let active: PendingObservation | undefined, runId: string | undefined, sequence = 0;
-  let observerFailed = false, droppedEvents = 0, unboundObservations = 0, lateReports = 0, logicalCalls = 0, physicalObservations = 0;
+  let observerFailed = false, droppedEvents = 0, unboundObservations = 0, lateReports = 0, logicalCalls = 0, physicalObservations = 0, omittedObservations = 0;
   const incomplete = () => { observerFailed = true; };
   const normalized = (error: unknown, operation: BoundaryOperation, httpStatus?: number): NormalizedBoundaryError => {
     // A host classifier is trusted policy, not a source of arbitrary fields for the retained record.
@@ -157,6 +160,13 @@ export function createBoundaryRecorder(options: BoundaryRecorderOptions = {}): B
           const context: BoundaryCallContext = Object.freeze({ attempt, signal: attempt.signal,
             ...(attempt.deadline === undefined ? {} : { deadline: attempt.deadline }), ...(attempt.timeoutMs === undefined ? {} : { timeoutMs: attempt.timeoutMs }),
             timeLeftMs: () => attempt.timeLeftMs(),
+            markIncomplete(reason: BoundaryObservationOmission) {
+              incomplete();
+              if (pending.finished || pending.settled || attempt.signal.aborted) { lateReports++; return; }
+              if (!['multiple-dispatches', 'response-unconsumed', 'observation-unavailable'].includes(reason)) return;
+              omittedObservations++;
+              if (safeOperation.effect === 'write') pending.ambiguousPhysicalWrite = true;
+            },
             observePhysical(input: PhysicalAttemptObservation) {
               physicalObservations++;
               if (pending.finished || pending.settled || attempt.signal.aborted) { lateReports++; incomplete(); return; }
@@ -220,7 +230,7 @@ export function createBoundaryRecorder(options: BoundaryRecorderOptions = {}): B
       const diagnostics = { observer: failed ? 'failed' : 'ok', ...(failed ? { code: 'BOUNDARY_EVIDENCE_INCOMPLETE' } : {}) };
       // All retained values are bounded projections, so a JSON round trip also detaches every nested object.
       return deepFreeze(JSON.parse(JSON.stringify({ schemaVersion: 1, ...(runId === undefined ? {} : { runId }), boundaryEvidence: retainedRows, physicalEvidence: retainedPhysical, diagnostics,
-        coverage: { logicalCalls, physicalObservations, inFlightCalls: live.size, droppedEvents: droppedEvents + orphaned.size, unboundObservations, lateReports,
+        coverage: { logicalCalls, physicalObservations, inFlightCalls: live.size, droppedEvents: droppedEvents + orphaned.size, unboundObservations, lateReports, omittedObservations,
           physicalAttemptCounts: 'reported-only', sdkRetryDecisions: 'unknown', externalDelivery: 'unknown' } })) as BoundaryRecorderSnapshot);
     },
   });

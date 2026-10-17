@@ -199,6 +199,21 @@ test('an SDK call without transport reports does not establish zero physical sen
   expect(report.unknowns.some(text => text.includes('zero provider sends'))).toBe(true);
 });
 
+test('a real observation plus an explicit omission stays incomplete without inventing attempts', async () => {
+  const run = await execute(ctx => { ctx.observePhysical(observation('ok')); ctx.markIncomplete('multiple-dispatches'); return 'acknowledged'; });
+  expect(run.providerFailure).toBeUndefined();
+  expect(run.snapshot.physicalEvidence).toHaveLength(1);
+  expect(run.snapshot.coverage.physicalObservations).toBe(1);
+  expect(run.snapshot.coverage.omittedObservations).toBe(1);
+  expect(run.snapshot.coverage.unboundObservations).toBe(0);
+  const report = diagnoseFailureRecording(run.recording);
+  expect(report.status).toBe('unknown');
+  expect(report.coverage.physicalTransportAttempts).toBe(1);
+  expect(report.coverage.physicalAttemptCounts).toBe('reported-only');
+  const previous = JSON.parse(JSON.stringify(run.recording)); delete previous.coverage.omittedObservations;
+  expect(() => diagnoseFailureRecording(previous)).not.toThrow();
+});
+
 test('unattached observer and pre-call admission failure remain explicit evidence gaps', async () => {
   const recorder = createBoundaryRecorder();
   const executor = new FlowChartExecutor(flowChart('Unattached', scope => recorder.run(scope, read, () => 'done'), 'unattached').setLogger(quiet).build());
