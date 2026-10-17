@@ -39,11 +39,11 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/release-tools" pnpm@12.11.2 --ignore-scripts --no-audit --no-fund
       - name: Install the frozen source graph
         run: '"$RUNNER_TEMP/release-tools/node_modules/@pnpm/exe.linux-x64/pnpm" install --frozen-lockfile --ignore-scripts'
-      - name: Typecheck, test and build
+      - name: Typecheck, build and test public exports
         run: |
           npm run typecheck
-          npm test
           npm run build
+          npm test
       - name: Check the existing release contracts
         run: npm run test:release
       - name: Pack and check the reviewed immutable archive
