@@ -1,7 +1,8 @@
 import type { AttemptContext, CallOptions, FlowAttemptEvent, FlowRecorder, RetryPolicy } from 'footprintjs';
 import { normalizeBoundaryError } from './index.js';
-import type { BoundaryEvidence, BoundaryNormalizationOptions, NormalizedBoundaryError, PhysicalBoundaryEvidence, BoundaryRecorderCoverage } from './types.js';
-export type { PhysicalBoundaryEvidence, BoundaryRecorderCoverage } from './types.js';
+import { readBoundaryRequestReference } from './requestReference.js';
+import type { BoundaryEvidence, BoundaryNormalizationOptions, NormalizedBoundaryError, PhysicalBoundaryEvidence, BoundaryRecorderCoverage, BoundaryRequestReference } from './types.js';
+export type { PhysicalBoundaryEvidence, BoundaryRecorderCoverage, BoundaryRequestReference } from './types.js';
 
 /** Logical names from trusted adapter code. Never put a URL, customer ID or credential in a name. */
 export interface BoundaryOperation {
@@ -27,6 +28,8 @@ export interface PhysicalAttemptObservation {
   readonly timeLeftMs?: number;
   /** Defines exactly what the adapter timed; reaching headers does not prove the response body was read. */
   readonly phase?: 'response-complete' | 'headers' | 'dispatch';
+  /** Adapter-reported provider lookup reference; the native engine does not authenticate it. */
+  readonly requestReference?: BoundaryRequestReference;
 }
 export interface BoundaryCallContext {
   readonly attempt: AttemptContext;
@@ -137,6 +140,7 @@ export function createBoundaryRecorder(options: BoundaryRecorderOptions = {}): B
           startedAt: record.startedAt, durationMs: record.durationMs,
           ...(report.attempt === undefined ? {} : { reportedAttempt: report.attempt }), ...(report.of === undefined ? {} : { reportedMaximum: report.of }),
           ...(report.timeoutMs === undefined ? {} : { timeoutMs: report.timeoutMs }), ...(report.timeLeftMs === undefined ? {} : { timeLeftMs: report.timeLeftMs }),
+          ...(report.requestReference === undefined ? {} : { requestReference: report.requestReference }),
           nativeDecisionMeaning: 'engine-interpretation', sdkRetryDecision: 'unknown' }));
       }
     } catch { incomplete(); unboundObservations++; }
@@ -177,10 +181,12 @@ export function createBoundaryRecorder(options: BoundaryRecorderOptions = {}): B
                   || n !== undefined && !count(n) || of !== undefined && (!count(of) || of < (n as number ?? 1)) || httpStatus !== undefined && !status(httpStatus)
                   || timeoutMs !== undefined && (!finite(timeoutMs) || timeoutMs <= 0) || timeLeftMs !== undefined && !finite(timeLeftMs)
                   || phase !== undefined && !['response-complete', 'headers', 'dispatch'].includes(phase as string)) throw new TypeError('Boundary observation is invalid');
+                const rawReference = own(input, 'requestReference'), requestReference = readBoundaryRequestReference(rawReference);
+                if (rawReference !== undefined && requestReference === undefined) throw new TypeError('Boundary request reference is invalid');
                 const failure = outcome === 'ok' ? undefined : normalized(own(input, 'error'), safeOperation, httpStatus as number | undefined);
                 if (safeOperation.effect === 'write' && (phase !== 'response-complete' || outcome !== 'ok' && failure?.effect !== 'none')) pending.ambiguousPhysicalWrite = true;
                 const report = { source, outcome, startedAt, durationMs, ...(n === undefined ? {} : { attempt: n }), ...(of === undefined ? {} : { of }),
-                  ...(httpStatus === undefined ? {} : { httpStatus }), ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(timeLeftMs === undefined ? {} : { timeLeftMs }), ...(phase === undefined ? {} : { phase }) } as PhysicalAttemptObservation;
+                  ...(httpStatus === undefined ? {} : { httpStatus }), ...(timeoutMs === undefined ? {} : { timeoutMs }), ...(timeLeftMs === undefined ? {} : { timeLeftMs }), ...(phase === undefined ? {} : { phase }), ...(requestReference === undefined ? {} : { requestReference }) } as PhysicalAttemptObservation;
                 const observation: PendingObservation = { parentId, call: pending, report, normalized: failure, matched: false };
                 const previous = active; active = observation;
                 try { attempt.observed({ target: safeOperation.target, source: report.source, outcome: report.outcome, startedAt: report.startedAt, durationMs: report.durationMs,

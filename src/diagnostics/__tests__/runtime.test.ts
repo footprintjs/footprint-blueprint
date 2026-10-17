@@ -288,3 +288,31 @@ test('parallel logical calls on the same stage keep distinct adapter-reported pa
     diagnostics: { persistence: 'stored', ...snapshot.diagnostics } });
   expect(report.status).toBe('recovered'); expect(report.coverage.logicalSDKCalls).toBe(2); expect(report.coverage.physicalTransportAttempts).toBe(3);
 });
+
+test('a host-selected provider request reference stays tied to the genuine physical attempt without authenticating delivery', async () => {
+  const reference = { namespace: 'stripe', id: 'req_fixture123' };
+  const run = await execute(ctx => { ctx.observePhysical({ ...observation('ok'), requestReference: reference }); reference.id = 'req_changed'; return 'acknowledged'; });
+  expect(run.result).toBe('acknowledged');
+  expect(run.snapshot.physicalEvidence[0]?.requestReference).toEqual({ namespace: 'stripe', id: 'req_fixture123' });
+  expect(Object.isFrozen(run.snapshot.physicalEvidence[0]?.requestReference)).toBe(true);
+  const diagnosis = diagnoseFailureRecording(run.recording);
+  expect(diagnosis.unknowns.some(text => text.includes('adapter-reported lookup aids'))).toBe(true);
+  expect(JSON.stringify(diagnosis)).not.toContain('req_fixture123');
+  expect(run.nativeSnapshot.executionTree.attempts.some((row: any) => row.kind === 'observed')).toBe(true);
+});
+
+test.each(['sk_live_PRIVATE', 'owner@example.invalid', 'https://provider.invalid/secret', 'x'.repeat(129)])('a malformed request reference cannot alter acknowledged business behavior', async id => {
+  const run = await execute(ctx => { ctx.observePhysical({ ...observation('ok'), requestReference: { namespace: 'provider', id } }); return 'acknowledged'; });
+  expect(run.result).toBe('acknowledged');
+  expect(run.snapshot.physicalEvidence).toEqual([]);
+  expect(run.snapshot.coverage.unboundObservations).toBeGreaterThan(0);
+  expect(JSON.stringify(run.recording)).not.toContain(id);
+  expect(diagnoseFailureRecording(run.recording).status).toBe('unknown');
+});
+
+test('an imported provider reference cannot bypass the strict stored-record seam', async () => {
+  const run = await execute(ctx => ctx.observePhysical(observation('ok')));
+  const changed = JSON.parse(JSON.stringify(run.recording));
+  changed.physicalEvidence[0].requestReference = { namespace: 'provider', id: 'sk_live_PRIVATE' };
+  expect(() => diagnoseFailureRecording(changed)).toThrow('Failure recording is invalid');
+});

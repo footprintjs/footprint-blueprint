@@ -1,3 +1,10 @@
+## 0.7.0 — local connected-record candidate (not published)
+
+- Add `footprint-blueprint/records/object-store`: a provider-neutral native Foottrace sink, immutable per-run objects, immediate bounded writes, cancellation on drain timeout, and a bounded read-only reader. The native record remains the source for replay, incomplete runs, gaps and unread entries.
+- Add optional per-action native record-sink factories through ActionExecutor and Platform. Storage outages remain diagnostic and cannot reverse acknowledged business work.
+- Retain optional adapter-reported provider request references on bound physical observations. These opaque lookup aids do not prove provider-internal execution or an outage; native attempt identities and unknown-effect rules remain authoritative.
+- Preserve the published FootprintJS10.1/Foottrace1.1 asynchronous durability contract: only acknowledged objects are known stored; an unacknowledged tail stays unknown after a hard kill. Add a real SIGKILL/fresh-reader regression and browser-only public import checks.
+
 ## 0.6.0 — local provider-evidence candidate (not published)
 
 - Add the explicit `footprint-blueprint/diagnostics/runtime` request-local native boundary collector, without changing the pure diagnostics runtime export surface.

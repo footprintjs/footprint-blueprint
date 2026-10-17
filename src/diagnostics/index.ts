@@ -1,3 +1,4 @@
+import { readBoundaryRequestReference } from './requestReference.js';
 import { errorCategory, AttemptTimeoutError } from 'footprintjs';
 import type { BoundaryErrorCategory, BoundaryErrorFields, BoundaryNormalizationOptions, NormalizedBoundaryError, FailureRecording, FailureDiagnosis, FailureFinding, FailureNativeSnapshot, FailureNativeNode, FailureNativeAttempt } from './types.js';
 export type * from './types.js';
@@ -174,13 +175,14 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
     if (!Array.isArray(record.physicalEvidence) || record.physicalEvidence.length > 200 || !native.present) fail();
     for (const p of record.physicalEvidence) {
       exact(p, ['attemptId', 'parentAttemptId', 'source', 'phase', 'startedAt', 'durationMs', 'nativeDecisionMeaning', 'sdkRetryDecision'],
-        ['reportedAttempt', 'reportedMaximum', 'timeoutMs', 'timeLeftMs']);
+        ['reportedAttempt', 'reportedMaximum', 'timeoutMs', 'timeLeftMs', 'requestReference']);
       if (!identifier(p.attemptId) || !identifier(p.parentAttemptId) || physicalIds.has(p.attemptId) || !fieldLabel(p.source)
         || !['response-complete', 'headers', 'dispatch'].includes(p.phase) || !Number.isFinite(p.startedAt) || !Number.isFinite(p.durationMs) || p.durationMs < 0
         || p.nativeDecisionMeaning !== 'engine-interpretation' || p.sdkRetryDecision !== 'unknown'
         || p.reportedAttempt !== undefined && (!integer(p.reportedAttempt) || p.reportedAttempt < 1)
         || p.reportedMaximum !== undefined && (!integer(p.reportedMaximum) || p.reportedMaximum < (p.reportedAttempt ?? 1))
         || p.timeoutMs !== undefined && (!Number.isFinite(p.timeoutMs) || p.timeoutMs <= 0) || p.timeLeftMs !== undefined && !Number.isFinite(p.timeLeftMs)) fail();
+      if (p.requestReference !== undefined && readBoundaryRequestReference(p.requestReference) === undefined) fail();
       const observed = native.attempts.get(p.attemptId), parent = native.attempts.get(p.parentAttemptId);
       const row = events.find(e => e.event.attemptId === p.attemptId), parentRow = events.find(e => e.event.attemptId === p.parentAttemptId);
       if (!observed || !parent || !row || !parentRow || observed.record.kind !== 'observed' || parent.record.kind !== 'call'
@@ -214,6 +216,7 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   const incompleteBoundary = partialResponse || record.coverage !== undefined && (record.diagnostics.observer === 'failed' || record.coverage.inFlightCalls > 0 || record.coverage.droppedEvents > 0 || record.coverage.unboundObservations > 0 || record.coverage.lateReports > 0 || (record.coverage.omittedObservations ?? 0) > 0);
   if (incompleteBoundary) unknowns.push('Boundary collection is incomplete: unfinished work, omitted events or late SDK reports prevent complete transport accounting.');
   if (partialResponse) unknowns.push('A successful transport observation covers only dispatch or response headers; complete response handling is not recorded.');
+  if (record.physicalEvidence?.some(p => p.requestReference !== undefined)) unknowns.push('Provider request references are adapter-reported lookup aids; they do not authenticate provider-internal execution or prove an external effect.');
   if ([...native.attempts.values()].some(a => a.record.kind === 'observed')) unknowns.push('Observed attempt decisions are the engine interpretation, not the SDK retry policy. Transport observations do not independently prove external effects or provider delivery.');
   if (record.coverage && record.coverage.logicalCalls > physicalParents.size) unknowns.push('Some logical SDK calls have no bound transport observations. No recorded transport observations is not evidence of zero provider sends.');
   if (native.present) for (const e of [...events].sort((a, b) => a.event.sequence - b.event.sequence)) {

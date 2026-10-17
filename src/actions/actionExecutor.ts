@@ -1,4 +1,5 @@
 import { FlowChartBuilder, FlowChartExecutor, MetricRecorder } from 'footprintjs';
+import type { RecordSink } from 'foottrace/write';
 import { footprintRuntimeVersion } from '../runtimeVersion.js';
 import { immutableValue } from '../features/index.js';
 import type { ServiceBridge } from '../adapters/index.js';
@@ -23,6 +24,12 @@ export type ActionExecutorOptions = {
   projectEvidenceRequest?: (input: unknown, context: ActionExecutionContext) => unknown;
   /** Trusted request-local engine controls, never read from action input or context.meta. No limits are added by default. */
   executionOptions?: (request: Readonly<{ actionId: string; context: ActionExecutionContext }>) => ExecutionRunOptions | undefined;
+  /** Optional host-owned native recording port, allocated independently for each actual execution.
+   * Gets no input/context. Undefined disables it. Diagnostics always use report/manual mode.
+   */
+  recordSink?: (request: Readonly<{ actionId: string; recordId: string }>) => RecordSink | undefined;
+  /** Final diagnostic drain only, 0–2000 ms (default 250), without changing business-call limits. */
+  recordSinkFlushTimeoutMs?: number;
 };
 export type ActionExecutor = { execute(actionId: string, input: unknown, context: ActionExecutionContext, handler?: ActionHandler): Promise<ActionResult> };
 /** Consume genuine native promises across realms without reading ordinary thenables. */
@@ -43,6 +50,10 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
   const projectActor = options.projectEvidenceActor;
   const projectRequest = options.projectEvidenceRequest;
   const executionOptions = options.executionOptions;
+  const recordSink = options.recordSink;
+  const recordSinkFlushTimeoutMs = options.recordSinkFlushTimeoutMs ?? 250;
+  if (recordSink !== undefined && typeof recordSink !== 'function') throw new TypeError('recordSink must be a synchronous native sink factory');
+  if (!Number.isSafeInteger(recordSinkFlushTimeoutMs) || recordSinkFlushTimeoutMs < 0 || recordSinkFlushTimeoutMs > 2000) throw new TypeError('recordSinkFlushTimeoutMs must be an integer from 0 to 2000');
   const reportObserver = (error: unknown) => {
     try {
       const result: unknown = onTraceError?.(error);
@@ -122,11 +133,31 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
         }), 'execute-action', 'Invoke the registered handler or profile adapter')
         .addFunction('AcknowledgeAction', () => undefined, 'acknowledge-action', 'Acknowledge the completed operation')
         .build();
-      const runtime = new FlowChartExecutor(chart, { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta' });
-      runtime.setRedactionPolicy({ keys: ['input', 'args', 'result', 'output', 'error', 'message', 'cause', 'meta', 'userId'] });
+      const nativeOptions = { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta' } as const;
+      let runtime: FlowChartExecutor;
+      let sinkAttached = false;
+      try {
+        const adapter = recordSink?.(Object.freeze({ actionId, recordId: globalThis.crypto.randomUUID() }));
+        if (consumeNativePromise(adapter)) throw new TypeError('recordSink must return a native sink synchronously');
+        runtime = new FlowChartExecutor(chart, { ...nativeOptions,
+          ...(adapter !== undefined ? { sink: { adapter, onFailure: 'report', flush: 'manual' } } : {}) });
+        sinkAttached = adapter !== undefined;
+      } catch {
+        // A diagnostics setup failure must not make an authoritative write retryable.
+        reportObserver(new Error('Native record sink is unavailable'));
+        runtime = new FlowChartExecutor(chart, nativeOptions);
+      }
+      runtime.setRedactionPolicy({ keys: ['input', 'args', 'result', 'output', 'error', 'message', 'cause', 'meta', 'userId', 'recordSinkError'],
+        diagnostics: { keys: ['errors.recordSinkError'] } });
       const metrics = new MetricRecorder('action-stage-metrics');
       runtime.attachScopeRecorder(metrics);
       try { await runtime.run(captureExecutionRunOptions(executionOptions?.(Object.freeze({ actionId, context })))); } catch (error) { if (!failure && !acknowledged) failure = error; else if (acknowledged) reportObserver(error); }
+      if (sinkAttached) {
+        try {
+          const flush = await runtime.flushRecord({ timeoutMs: recordSinkFlushTimeoutMs });
+          if (flush.failed || flush.pending) reportObserver(new Error(flush.pending ? 'Native record flush is pending' : 'Native record flush failed'));
+        } catch { reportObserver(new Error('Native record flush is unavailable')); }
+      }
       const completedAt = Date.now();
       let executionTrace: ExecutionTrace | undefined;
       let executionSnapshot: unknown;

@@ -87,6 +87,8 @@ export interface FailureRecording {
   readonly coverage?: BoundaryRecorderCoverage;
   readonly diagnostics: { readonly persistence: 'stored' | 'failed'; readonly observer: 'ok' | 'failed'; readonly code?: string };
 }
+/** A host-selected request lookup reference, not proof of provider-internal execution or delivery. */
+export interface BoundaryRequestReference { readonly namespace: string; readonly id: string }
 /** Adapter assertions tied to real native observed records; never independent proof of provider delivery. */
 export interface PhysicalBoundaryEvidence {
   readonly attemptId: string;
@@ -101,6 +103,7 @@ export interface PhysicalBoundaryEvidence {
   readonly timeLeftMs?: number;
   readonly nativeDecisionMeaning: 'engine-interpretation';
   readonly sdkRetryDecision: 'unknown';
+  readonly requestReference?: BoundaryRequestReference;
 }
 export interface BoundaryRecorderCoverage {
   readonly logicalCalls: number;
