@@ -4,7 +4,7 @@
 
 ## One package, focused modules
 
-This local **`footprint-blueprint@0.7.0`** candidate pairs with the local `smallbusiness-footprint@0.7.0` candidate, adds incremental object-store records and provider lookup references, and pins the separate `footprintjs@10.1.0` engine with `foottrace@1.1.0`. It has not been published. The existing six framework modules and focused import paths remain available.
+**`footprint-blueprint@0.9.0`** pairs with optional `smallbusiness-footprint@0.9.0` and pins the separate `footprintjs@10.1.0` engine with `foottrace@1.4.0`. It adds optional expected-execution coverage beside retained cause evidence: observed execution, missing proof and unknown inventories stay distinct. Incremental object-store records, provider lookup references and the existing six framework modules remain available through focused import paths. Publication and deployment are verified separately from a source build.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -12,6 +12,7 @@ Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start wi
 import { defineModule, defineProfile } from 'footprint-blueprint/features';
 import { createEvidenceCollector } from 'footprint-blueprint/evidence';
 import { diagnoseFailureRecording } from 'footprint-blueprint/diagnostics';
+import { readRecordedCoverage } from 'footprint-blueprint/diagnostics/coverage';
 import { createPlatform } from 'footprint-blueprint/platform';
 
 // Load actions when your application reaches this point.
@@ -19,6 +20,8 @@ const { createActionRegistry } = await import('footprint-blueprint/actions');
 ```
 
 Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Diagnostics uses the public engine error classifier but executes no flow or provider request. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
+
+The optional [cause and expected-work guide](docs/cause.md) explains authorized saved-record queries, bounded host-authored descriptions and shared Foottrace requirement results. A retained commit proves execution was observed; it does not establish a business or provider success. Missing proof remains unresolved and does not create a causal node or root cause.
 
 The [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) describe the two-artifact release and the separate Node 22 school compatibility path. The earlier seven-artifact kit is retained as a historical reference and is superseded by this packaging.
 

@@ -1,6 +1,6 @@
 {
   "name": "footprint-blueprint",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Modular platform framework with shared execution evidence and focused import paths",
   "type": "module",
   "main": "./dist/index.js",
@@ -70,6 +70,11 @@
       "types": "./dist/records/object-store.d.ts",
       "import": "./dist/records/object-store.js",
       "default": "./dist/records/object-store.js"
+    },
+    "./diagnostics/coverage": {
+      "types": "./dist/diagnostics/coverage.d.ts",
+      "import": "./dist/diagnostics/coverage.js",
+      "default": "./dist/diagnostics/coverage.js"
     }
   },
   "scripts": {

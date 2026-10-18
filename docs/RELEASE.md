@@ -1,13 +1,13 @@
-# Local candidate and release runbook
+# Release runbook
 
-The current locally prepared candidates are Blueprint 0.5.0 and Smallbusiness 0.5.0. Local validation and packing do not establish npm publication or a Gamma deployment. Keep the prior published release available until the new archives have been reviewed and their consumers verified.
+The prepared release is Blueprint 0.9.0 with optional Smallbusiness 0.9.0. Local validation and packing do not establish npm publication or a Gamma deployment. Keep the prior published release available until the new archives have been reviewed and their consumers verified.
 
-| Package | Candidate | Exact runtime dependencies |
+| Package | Release | Reviewed runtime dependency declarations |
 | --- | --- | --- |
-| `footprint-blueprint` | 0.5.0 | `footprintjs@10.1.0`, `ajv@8.20.0`, `ajv-formats@3.0.1` |
-| `smallbusiness-footprint` | 0.5.0 | `footprint-blueprint@0.5.0`, `footprintjs@10.1.0`, `zod@4.6.5` |
+| `footprint-blueprint` | 0.9.0 | `footprintjs@10.1.0`, `foottrace@1.4.0`, `ajv@8.20.0`, `ajv-formats@3.0.1` |
+| `smallbusiness-footprint` | 0.9.0 | `footprint-blueprint@^0.9.0`, `footprintjs@10.1.0`, `foottrace@1.4.0`, `zod@4.6.5` |
 
-Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the reviewed `vendor/footprint-blueprint-0.5.0.tgz`; its public manifest keeps the exact numeric dependency. The packed archive must not include that development override or vendor archive.
+Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the reviewed `vendor/footprint-blueprint-0.9.0.tgz`; its public manifest keeps the portable `^0.9.0` compatibility declaration. Freeze the actual installed Blueprint 0.9.0 archive and its integrity in the release receipt. The packed archive must not include that development override or vendor archive.
 
 ## Verify source and build
 
@@ -33,7 +33,7 @@ Build first. The CI verification step uses the already checked build and disable
 npm pack --ignore-scripts --pack-destination release
 ```
 
-The resulting files are `footprint-blueprint-0.5.0.tgz` and `smallbusiness-footprint-0.5.0.tgz`. Record SHA-256 and SHA-512 integrity, inspect public manifests and all exported runtime/type files, and compare them with the reviewed source. Store exact identities in `scripts/release/reviewed.json`. Updating review metadata does not publish a package.
+The resulting files are `footprint-blueprint-0.9.0.tgz` and `smallbusiness-footprint-0.9.0.tgz`. Record SHA-256 and SHA-512 integrity, inspect public manifests and all exported runtime/type files, and compare them with the reviewed source. Store exact identities in `scripts/release/reviewed.json`. Updating review metadata does not publish a package. Never use a historical version's reviewed metadata to approve a newer archive.
 
 For each archive, run the built-in-only verifier:
 
@@ -51,7 +51,7 @@ In Charming Cherubs, pin both archives in the root, backend, frontend and invest
 
 ## Publication is a separate action
 
-Publish only when authorized, in dependency order: Blueprint 0.5.0 first, then Smallbusiness 0.5.0. The explicit GitHub workflow publication job requires the owning repository, main branch, manual dispatch and OIDC. It checks registry identity and exact dependency integrity before publishing the reviewed archive; it does not rebuild during publication.
+Publish only when authorized, in dependency order: Blueprint 0.9.0 first, then Smallbusiness 0.9.0. The explicit GitHub workflow publication job requires the owning repository, main branch, manual dispatch and OIDC. It checks registry identity and exact dependency integrity before publishing the reviewed archive; it does not rebuild during publication. A separately authorized manual publication must apply the same archive, manifest and dependency-identity checks rather than impersonating the workflow environment.
 
 If a version already exists, verify it is byte-identical. Never overwrite it or treat an uncertain publish result as permission to resend. After publication, verify a fresh registry-only consumer and the existing quickstart examples. A local tarball test must not be reported as npm publication, and local validation must complete before any Gamma rollout.
 

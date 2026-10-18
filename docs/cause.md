@@ -55,3 +55,88 @@ returning results to a browser/model, a host must replace them with opaque refer
 references must be statelessly authenticated and bound to the authorized record. Never return
 the reader's private `.scopes`, `.nodes` or raw result directly to a customer. Names/references
 establish recorded application dependencies, not a provider's internal root cause.
+
+## Expected inventory and missing evidence
+
+The optional `footprint-blueprint/diagnostics/coverage` reader describes the expected work as
+well as the work visible in a record. This is a separate projection: it never changes the
+cause graph, creates execution nodes, marks an unobserved step as abnormal or upgrades a root.
+
+```ts
+import { readRecordedCoverage } from 'footprint-blueprint/diagnostics/coverage';
+
+const coverage = readRecordedCoverage({
+  source: recordedCauseScopes(nativeSnapshot, causeCapture),
+  findingRef: 'finding:owner-investigation',
+  windowRef: 'window:authorized-record',
+  declaration: {
+    version: 1,
+    runId: nativeSnapshot.runId,
+    definitionRef: 'definition:checkout-v1',
+    label: 'Checkout',
+    description: 'Expected application work; observed execution does not prove payment success.',
+    complete: false,
+    scopes: [{
+      ref: 'scope:checkout-root',
+      address: { logRunId: nativeSnapshot.runId, drillPath: [] },
+      steps: [{
+        ref: 'requirement:payment-session',
+        stageId: 'create-session',
+        label: 'Create payment session',
+        description: 'Ask the configured payment adapter to create a session.',
+      }],
+    }],
+  },
+});
+```
+
+The host supplies trusted, versioned declarations from the actual chart definition. The SDK's
+runtime manifest lists only entered subflows, so it cannot inventory branches that were not
+entered. Use the public builder/spec readers for declared work. Exact scope addresses and full
+static stage IDs matter; display names, local IDs, prose rationale and array position do not
+identify a stage. The reader rejects a declaration naming a different run from retained scopes.
+When no scope is retained, it cannot establish that binding and leaves the inventory unknown.
+
+`complete` describes the expected inventory only. A root-only declaration is partial when it
+does not cover nested or dynamically generated work. Do not invent child addresses before a
+mount executes, treat a loop back-reference as an executable stage, or treat a dynamic fan-out
+template as evidence of a particular number of runtime children. A trusted description explains
+the intended job; it is not evidence that this job ran.
+
+The report starts with an inventory row and then a row per declared step. Each row carries a
+shared Foottrace `RequirementResult`, admitted by `readRequirementResults`. Descriptions stay
+outside that reference-only contract. A retained commit yields `observed` and a `checked-pass`
+for the narrow requirement **execution is observed in this retained record**. It says nothing
+about success, provider effects, full attempt history, or whether a retained execution belongs
+to the current resume leg. Up to16 actual commit references support that existential check;
+they are representative evidence, not an exhaustive list of executions. No attempt is invented.
+
+If no matching commit was retained, the row is `not-observed`, with an unresolved
+`not-collected` result. It has no completed execution check (`checks: []`): searching a scope without finding
+proof does not make the business stage unreachable. A check is `unreachable` only when its
+declaration or scope is unavailable, and describes check availability, not business reachability. An absent declared scope
+is `unknown`, also unresolved with `not-collected`. Fixed `coverage:execution-not-collected`
+and `coverage:scope-not-collected` detail identifiers distinguish those cases. Missing or partial
+declarations yield an explicit unknown inventory row. Existing incomplete source coverage is
+retained as a `not-collected` gap. No missing record becomes an empty successful record.
+
+This version never infers skipped, not-applicable, failed or blocked from absence. A different
+selected branch or an upstream error is insufficient proof by itself. In particular, the SDK's
+decision display name does not prove which same-named static branch was excluded. A later
+adapter may supply separately verified decision evidence through the existing requirement
+contract; structural admission alone must never make that assertion authoritative.
+
+Inputs are bounded and inert: at most16 declared scopes,256 total steps,16 mount-path entries,
+120 characters per label,1024 per description, and512 per non-secret reference. Unknown fields,
+duplicates, accessors, cycles, sparse arrays and invalid prototypes are rejected without keeping
+their values in an error. Results are detached and frozen. Admission is atomic and uses the
+shared Foottrace reason vocabulary; there is no second gap registry or claim engine.
+
+All declarations, native references and source pointers are private. The host must authenticate
+the source, check run/store/window/finding bindings and producer authority, replace references
+with opaque authorized handles, and choose trusted text before presenting data to a browser or
+model. Identifiers and descriptions do not detect secrets automatically. Render descriptions as
+text, never HTML. A satisfied execution-observed result must not override any unresolved result
+affecting the same finding. The existing claim gate remains responsible for factual claims.
+Consumers must also retain the report's source gaps when evaluating complete claims: narrow
+execution-observed checks do not satisfy a separate requirement for complete source evidence.

@@ -9,11 +9,17 @@ export function assertArchive(bytes, expected) {
 export function assertPackage(pkg, expected) {
   assert.equal(pkg.name, expected.name, 'Unexpected package.');
   assert.equal(pkg.version, expected.version, 'Unexpected version.');
-  assert.deepEqual(pkg.dependencies, expected.dependencies, 'Release dependencies must match the reviewed exact versions.');
+  assert.deepEqual(pkg.dependencies, expected.dependencies, 'Release dependencies must match the reviewed declarations exactly.');
   assert.equal(pkg.repository?.url, expected.repository, 'Repository must match the trusted publisher.');
   assert.equal(pkg.publishConfig?.access, 'public');
   assert.equal(pkg.publishConfig?.registry, 'https://registry.npmjs.org/');
-  assert.ok(Object.values(pkg.dependencies).every(value => /^\d+\.\d+\.\d+$/.test(value)), 'Only portable exact stable dependencies may be released.');
+  assert.ok(Object.entries(pkg.dependencies).every(([name, value]) =>
+    /^\d+\.\d+\.\d+$/.test(value)
+    // This reviewed release intentionally exposes one Blueprint compatibility range.
+    // The equality check above still binds its exact spelling to reviewed metadata.
+    || (pkg.name === 'smallbusiness-footprint' && pkg.version === '0.9.0'
+      && name === 'footprint-blueprint' && value === '^0.9.0')),
+  'Only portable exact stable dependencies or the reviewed Smallbusiness 0.9 Blueprint range may be released.');
 }
 
 export function registryState(status, metadata, expected) {

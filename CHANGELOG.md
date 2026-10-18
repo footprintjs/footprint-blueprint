@@ -1,3 +1,12 @@
+# 0.9.0 — expected-execution evidence
+
+- Add the explicit, optional `footprint-blueprint/diagnostics/coverage` import for declared expected work beside genuine retained commits.
+- Reuse Foottrace requirement checks and gap reasons: observation proves execution evidence only; missing steps and unknown inventories remain unresolved.
+- Keep descriptions outside evidence references, validate exact run and scope bindings, bound and detach input/output, and leave native graph records unchanged.
+- No model, storage provider, retry or business action is added.
+
+Prepared 2026-10-18. Publication, registry-byte verification and application deployment are separate release steps.
+
 ## 0.7.0 — local connected-record candidate (not published)
 
 - Add `footprint-blueprint/records/object-store`: a provider-neutral native Foottrace sink, immutable per-run objects, immediate bounded writes, cancellation on drain timeout, and a bounded read-only reader. The native record remains the source for replay, incomplete runs, gaps and unread entries.

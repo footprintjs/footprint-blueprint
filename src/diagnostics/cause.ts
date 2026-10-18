@@ -2,6 +2,7 @@ import { isExecutionKey, type LogAddress } from 'foottrace';
 import { attentionList, createRecordGraph, explain, type AttentionListResult, type CauseGraph, type CauseResult,
   type ExplainOptions, type RecordNode, type RecordScope } from 'foottrace/cause';
 import type { CauseCapture } from './causeCapture.js';
+import { admitInertData } from './coverageAdmission.js';
 export { createCauseCapture } from './causeCapture.js';
 export type { CauseCapture } from './causeCapture.js';
 export type { RecordScope, CauseResult } from 'foottrace/cause';
@@ -22,26 +23,8 @@ const own = (value: unknown, key: string): unknown => { if (!value || typeof val
 
 /** Admit bounded inert JSON before any projection. Getters, thenables, cycles and prototype keys are refused. */
 function admit(value: unknown): void {
-  const active = new Set<object>(); let fields = 0, chars = 0;
-  const visit = (item: unknown, depth: number): void => {
-    if (++fields > 50000 || depth > 48) fail('CAUSE_RECORD_LIMIT');
-    if (item === undefined || item === null || typeof item === 'boolean') return;
-    if (typeof item === 'string') { chars += item.length; if (item.length > 65536 || chars > 2 * 1024 * 1024) fail('CAUSE_RECORD_LIMIT'); return; }
-    if (typeof item === 'number' && Number.isFinite(item)) return;
-    if (!item || typeof item !== 'object' || active.has(item)) fail();
-    const array = Array.isArray(item), prototype = Object.getPrototypeOf(item);
-    if ((!array && prototype !== Object.prototype && prototype !== null) || (array && item.length > 5000)) fail();
-    active.add(item);
-    for (const key of Reflect.ownKeys(item)) {
-      if (array && key === 'length') continue;
-      if (typeof key !== 'string' || key.length > 4096 || ['__proto__', 'prototype', 'constructor'].includes(key)) fail();
-      const d = Object.getOwnPropertyDescriptor(item, key); if (!d || !d.enumerable || !('value' in d)) fail();
-      chars += key.length; if (chars > 2 * 1024 * 1024) fail('CAUSE_RECORD_LIMIT'); visit(d.value, depth + 1);
-    }
-    if (array && Object.keys(item).length !== item.length) fail();
-    active.delete(item);
-  };
-  try { visit(value, 0); } catch (error) { if (error instanceof CauseRecordingError) throw error; fail(); }
+  try { admitInertData(value, () => fail(), () => fail('CAUSE_RECORD_LIMIT')); }
+  catch (error) { if (error instanceof CauseRecordingError) throw error; fail(); }
 }
 
 /** Project actual own logs only. No guessed mount names, synthetic commits, scores or post-hoc dependency traversal. */
