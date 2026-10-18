@@ -1,6 +1,6 @@
 {
   "name": "footprint-blueprint",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Modular platform framework with shared execution evidence and focused import paths",
   "type": "module",
   "main": "./dist/index.js",
@@ -61,6 +61,11 @@
       "import": "./dist/diagnostics/runtime.js",
       "default": "./dist/diagnostics/runtime.js"
     },
+    "./diagnostics/cause": {
+      "types": "./dist/diagnostics/cause.d.ts",
+      "import": "./dist/diagnostics/cause.js",
+      "default": "./dist/diagnostics/cause.js"
+    },
     "./records/object-store": {
       "types": "./dist/records/object-store.d.ts",
       "import": "./dist/records/object-store.js",
@@ -78,7 +83,7 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "footprintjs": "10.1.0",
-    "foottrace": "1.1.0"
+    "foottrace": "1.4.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

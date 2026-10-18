@@ -15,6 +15,16 @@ beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}); vi.sp
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('optional native action record sink', () => {
+  it('opt-in cause capture preserves acknowledgement and keeps private input outside its factual maps', async () => {
+    const result = await createActionExecutor(actions(), undefined, { authorizer: () => true, captureCause: true })
+      .execute('publish', { message: PRIVATE }, context, async () => 'applied');
+    expect(result.status).toBe('success'); expect(result.result).toBe('applied');
+    expect(result.executionTrace?.causeCapture).toMatchObject({ version: 1, ruleVersion: 'recorded-facts-v1', complete: true });
+    expect(result.executionTrace?.executionSnapshot).toMatchObject({ writeProvenance: 'reads-prefix' });
+    expect(JSON.stringify(result.executionTrace?.causeCapture)).not.toContain(PRIVATE);
+    const defaultResult = await createActionExecutor(actions(), undefined, { authorizer: () => true }).execute('publish', {}, context, async () => 'applied');
+    expect(defaultResult.executionTrace).not.toHaveProperty('causeCapture');
+  });
   it('stores an authentic incomplete prefix before the authoritative operation returns', async () => {
     const sink = memorySink(), factory = vi.fn<NonNullable<ActionExecutorOptions['recordSink']>>(() => sink);
     let release!: () => void, entered!: () => void;

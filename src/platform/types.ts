@@ -49,6 +49,7 @@ export type PlatformConfig = {
   /** Optional host native sink factory; receives only an action id and fresh diagnostic locator. */
   readonly recordSink?: ActionExecutorOptions['recordSink'];
   readonly recordSinkFlushTimeoutMs?: ActionExecutorOptions['recordSinkFlushTimeoutMs'];
+  readonly captureCause?: ActionExecutorOptions['captureCause'];
   readonly resolverOptions?: ProfileResolverOptions;
 };
 

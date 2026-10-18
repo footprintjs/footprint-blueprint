@@ -9,6 +9,7 @@ import { createEvidenceCollector } from './evidence.js';
 import type { EvidenceCollectorOptions, ExecutionEvidence } from './evidence.js';
 import type { ActionAuthorizer, ActionExecutionContext, ActionHandler, ActionHandlerRegistry, ActionResult, ActionTrace, ExecutionTrace, TraceRecorder } from './types.js';
 import { captureExecutionRunOptions, type ExecutionRunOptions } from './executionOptions.js';
+import { createCauseCapture } from '../diagnostics/causeCapture.js';
 export type ActionExecutorOptions = {
   /** Trusted server/app callback. Omitting it denies every execution. */
   authorizer?: ActionAuthorizer;
@@ -30,6 +31,8 @@ export type ActionExecutorOptions = {
   recordSink?: (request: Readonly<{ actionId: string; recordId: string }>) => RecordSink | undefined;
   /** Final diagnostic drain only, 0–2000 ms (default 250), without changing business-call limits. */
   recordSinkFlushTimeoutMs?: number;
+  /** Trusted opt-in factual/control capture; never enabled from customer action input. */
+  captureCause?: boolean;
 };
 export type ActionExecutor = { execute(actionId: string, input: unknown, context: ActionExecutionContext, handler?: ActionHandler): Promise<ActionResult> };
 /** Consume genuine native promises across realms without reading ordinary thenables. */
@@ -52,6 +55,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
   const executionOptions = options.executionOptions;
   const recordSink = options.recordSink;
   const recordSinkFlushTimeoutMs = options.recordSinkFlushTimeoutMs ?? 250;
+  const captureCause = options.captureCause === true;
   if (recordSink !== undefined && typeof recordSink !== 'function') throw new TypeError('recordSink must be a synchronous native sink factory');
   if (!Number.isSafeInteger(recordSinkFlushTimeoutMs) || recordSinkFlushTimeoutMs < 0 || recordSinkFlushTimeoutMs > 2000) throw new TypeError('recordSinkFlushTimeoutMs must be an integer from 0 to 2000');
   const reportObserver = (error: unknown) => {
@@ -133,7 +137,8 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
         }), 'execute-action', 'Invoke the registered handler or profile adapter')
         .addFunction('AcknowledgeAction', () => undefined, 'acknowledge-action', 'Acknowledge the completed operation')
         .build();
-      const nativeOptions = { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta' } as const;
+      const causeObserver = captureCause ? createCauseCapture() : undefined;
+      const nativeOptions = { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta', ...(captureCause ? { writeProvenance: 'reads-prefix' as const } : {}) } as const;
       let runtime: FlowChartExecutor;
       let sinkAttached = false;
       try {
@@ -151,6 +156,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
         diagnostics: { keys: ['errors.recordSinkError'] } });
       const metrics = new MetricRecorder('action-stage-metrics');
       runtime.attachScopeRecorder(metrics);
+      if (causeObserver) runtime.attachFlowRecorder(causeObserver.recorder);
       try { await runtime.run(captureExecutionRunOptions(executionOptions?.(Object.freeze({ actionId, context })))); } catch (error) { if (!failure && !acknowledged) failure = error; else if (acknowledged) reportObserver(error); }
       if (sinkAttached) {
         try {
@@ -161,11 +167,13 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
       const completedAt = Date.now();
       let executionTrace: ExecutionTrace | undefined;
       let executionSnapshot: unknown;
+      let causeCapture: ReturnType<ReturnType<typeof createCauseCapture>['snapshot']> | undefined;
       let engineRunId: string | undefined;
       try {
         const snapshot = runtime.getSnapshot({ redact: true });
         executionSnapshot = snapshot;
         engineRunId = snapshot.runId;
+        if (causeObserver) causeCapture = causeObserver.snapshot(snapshot);
       } catch (error) { reportObserver(error); }
       const details = failure && typeof failure === 'object' ? failure as Record<string, unknown> : {};
       // Provider messages/causes and arbitrary provider strings stay outside the receipt.
@@ -188,6 +196,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
           startedAt: new Date(startedAt).toISOString(), completedAt: new Date(completedAt).toISOString(),
           ...(acknowledged ? {} : { errorMessage: 'Action execution rejected' }),
           ...(executionSnapshot !== undefined ? { executionSnapshot } : {}),
+          ...(causeCapture ? { causeCapture } : {}),
           ...(evidence ? { evidence } : {}), runtime: { library: 'footprintjs', version: footprintRuntimeVersion },
           stageMetrics: [...metrics.getMap().values()].map(metric => ({ stageName: metric.stageName, durationMs: metric.duration })),
         }) as ExecutionTrace;

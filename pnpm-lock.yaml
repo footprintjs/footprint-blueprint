@@ -176,8 +176,8 @@ importers:
         specifier: 10.1.0
         version: 10.1.0
       foottrace:
-        specifier: 1.1.0
-        version: 1.1.0
+        specifier: 1.4.0
+        version: 1.4.0
     devDependencies:
       '@types/node':
         specifier: 24.19.2
@@ -513,8 +513,8 @@ packages:
       zod:
         optional: true
 
-  foottrace@1.1.0:
-    resolution: {integrity: sha512-bC+9Sp4oMD33KXOxDM5JHUGkw7rcLrskSAq2pypogQDqkgm6Sf+7vStliIjyYYm26VM/aMYqVTPDnDgJArbkyQ==}
+  foottrace@1.4.0:
+    resolution: {integrity: sha512-qJnkl1lvSZuFc3i7p/Cx7e1wswpdkE/1pOSV5yyehF1aSU/O9LY2DEWzI3/Q2MuoSMCgFJtWxM1IzivBBBlsWg==}
     engines: {node: '>=22'}
 
   fsevents@2.3.3:
@@ -933,9 +933,9 @@ snapshots:
 
   footprintjs@10.1.0:
     dependencies:
-      foottrace: 1.1.0
+      foottrace: 1.4.0
 
-  foottrace@1.1.0: {}
+  foottrace@1.4.0: {}
 
   fsevents@2.3.3:
     optional: true

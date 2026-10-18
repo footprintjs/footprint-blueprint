@@ -28,7 +28,7 @@ export function createPlatform(config: PlatformConfig): Platform {
     projectEvidenceActor: config.projectEvidenceActor,
     projectEvidenceRequest: config.projectEvidenceRequest,
     executionOptions: config.executionOptions,
-    recordSink: config.recordSink, recordSinkFlushTimeoutMs: config.recordSinkFlushTimeoutMs,
+    recordSink: config.recordSink, recordSinkFlushTimeoutMs: config.recordSinkFlushTimeoutMs, captureCause: config.captureCause,
   }) : undefined;
   const hasImplementation = (action: ActionDefinition, profileType: string) => Object.hasOwn(handlers, action.id) || Boolean(action.capabilityId && bridge?.hasAdapter(action.capabilityId, profileType));
   const resolveAction = async (suppliedContext: TenantContext, actionId: string) => {

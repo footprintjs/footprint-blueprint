@@ -30,6 +30,12 @@ Publication and final stable-package validation are pending.
 
 # Changelog
 
+## 0.8.0 — local release candidate
+
+- Add the optional `/diagnostics/cause` host service using public Foottrace1.4 cause/impact queries, bounded discovery and honest incomplete coverage.
+- Add a bounded, versioned host factual/control observer and trusted action/platform capture opt-in. Keep messages, payloads and provider-internal conclusions outside its maps.
+- Pin the record runtime to Foottrace1.4.0; no npm publication or cloud deployment is implied by this candidate.
+
 ## 0.4.1-gamma.1 — private coordinated engine candidate
 
 - Pin the reviewed `footprintjs@10.1.0-gamma.1` runtime without changing default action behavior.
