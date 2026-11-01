@@ -1,4 +1,4 @@
-name: Reviewed npm release
+name: Source checks and reviewed npm release
 
 on:
   pull_request:
@@ -34,7 +34,7 @@ jobs:
       - name: Verify the pinned npm version and release guards
         run: |
           test "$(npm --version)" = 11.19.0
-          node --test scripts/release/guards.test.mjs
+          node --test scripts/release/guards.test.mjs scripts/release/candidate.test.mjs scripts/release/pipeline.test.mjs
       - name: Install the pinned package manager without lifecycle scripts
         run: npm install --prefix "$RUNNER_TEMP/release-tools" pnpm@12.11.2 --ignore-scripts --no-audit --no-fund
       - name: Install the frozen source graph
@@ -43,22 +43,25 @@ jobs:
         run: |
           npm run typecheck
           npm run build
-          npm test
+          npm test -- --maxWorkers=4
       - name: Check the existing release contracts
         run: npm run test:release
-      - name: Pack and check the reviewed immutable archive
+      - name: Pack and check the current source candidate
         run: |
           mkdir -p release
           npm pack --ignore-scripts --pack-destination release
           mv release/footprint-blueprint-0.5.0.tgz release/package.tgz
-          node scripts/release/run.mjs archive release/package.tgz
+          node scripts/release/check-candidate.mjs release/package.tgz
           git diff --exit-code
+      - name: Verify immutable review approval before an explicit publication
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        run: node scripts/release/run.mjs archive release/package.tgz
       - name: Check the registry immediately before an explicit publication
         if: github.event_name == 'workflow_dispatch' && inputs.publish
         run: node scripts/release/run.mjs preflight release/package.tgz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: reviewed-package
+          name: checked-source-package
           path: release/package.tgz
           if-no-files-found: error
           retention-days: 7
@@ -81,7 +84,7 @@ jobs:
           package-manager-cache: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: reviewed-package
+          name: checked-source-package
           path: release
       - name: Publish only the reviewed archive using GitHub OIDC
         run: |

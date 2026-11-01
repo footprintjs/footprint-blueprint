@@ -25,6 +25,12 @@ Blueprint also runs `npm run test:release`. Smallbusiness runs its seven synthet
 
 Diagnostics must preserve genuine native run, stage and physical attempt identity, explicit retry decisions, missing evidence and unknown side effects. Test custom non-commerce labels and alternate brands, not just one storefront. Verify that Blueprint does not import commerce or provider code, and that normal commerce runtime entries cannot reach Smallbusiness's explicit `/testing` entry.
 
+## Source CI does not approve a release
+
+Ordinary pull requests, main pushes and non-publishing manual runs pack the current source and run `node scripts/release/check-candidate.mjs release/package.tgz`. This checks the complete packed/source manifest, the existing package identity and exact dependency constraints, archive containment, required documentation and all declared main/type/export targets. Local pnpm candidate preparation reuses the same archive-file validator alongside its existing identity/runtime checks; pnpm’s development-manifest normalization does not relax the complete-manifest comparison used by npm source CI. The result is a checked source candidate, not immutable release approval; the workflow artifact is named `checked-source-package`.
+
+An explicit publication still runs the unchanged immutable archive verifier and registry preflight before uploading its artifact. The main-only publication job independently checks the same reviewed hashes, package, registry dependencies and OIDC authorization again. A changed README or metadata can pass source CI while publication remains refused until a fresh archive receives its separate exact-byte review. Source CI never updates `scripts/release/reviewed.json` or selects a new version.
+
 ## Pack the reviewed candidates
 
 Build first. The CI verification step uses the already checked build and disables lifecycle hooks while packing:
@@ -41,7 +47,7 @@ For each archive, run the built-in-only verifier:
 node scripts/release/run.mjs archive /absolute/path/to/reviewed-package.tgz
 ```
 
-The workflow checks the pinned npm version, frozen dependencies, source tests, build and exact archive hashes. It does not accept an arbitrary archive just because its version matches. A source or byte change requires fresh review and validation before updating the recorded identity.
+The workflow checks pinned tools, frozen dependencies, source tests, build and current-source packaging on every run, and checks the exact reviewed archive hashes before any explicit publication. It does not accept an arbitrary archive just because its version matches. A source or byte change requires fresh review and validation before updating the recorded identity.
 
 ## Verify consumers before Gamma
 
