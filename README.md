@@ -2,9 +2,13 @@
 
 **Define once, derive everything** — a domain-agnostic platform framework for building configurable multi-tenant systems.
 
+For platform developers serving several customer profiles from one codebase.
+
+[Source setup](#source-setup) · [Module entry points](#module-entry-points) · [Diagnostics](docs/diagnostics.md) · [Release status and runbook](docs/RELEASE.md)
+
 ## One package, focused modules
 
-This local **`footprint-blueprint@0.5.0`** candidate pairs with the local `smallbusiness-footprint@0.5.0` candidate, adds reusable stored-failure diagnostics, and pins the separate `footprintjs@10.1.0` engine. It has not been published. The existing six framework modules and focused import paths remain available.
+This local **`footprint-blueprint@0.5.0`** candidate pairs with the local `smallbusiness-footprint@0.5.0` candidate, adds reusable stored-failure diagnostics, and pins the separate `footprintjs@10.1.0` engine. This README describes the source checkout candidate; [npm registry releases](https://www.npmjs.com/package/footprint-blueprint) may contain different code even when version labels match. The existing six framework modules and focused import paths remain available.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 

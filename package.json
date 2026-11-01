@@ -1,7 +1,7 @@
 {
   "name": "footprint-blueprint",
   "version": "0.5.0",
-  "description": "Modular platform framework with shared execution evidence and focused import paths",
+  "description": "TypeScript platform modules for scoped tenant profiles, feature configuration, adapter routing and action execution with retained evidence.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -99,5 +99,15 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  }
+  },
+  "keywords": [
+    "typescript",
+    "multi-tenant",
+    "feature-modules",
+    "configuration",
+    "adapter-pattern",
+    "action-registry",
+    "execution-provenance",
+    "footprintjs"
+  ]
 }
