@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { validateReleaseRuntime } from './release-contract.mjs';
+import { assertCandidateFiles } from './release/candidate.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -58,15 +59,7 @@ for (const { directory, pkg } of packages) {
       if (versions.has(dependency)) assert.equal(version, versions.get(dependency));
     }
     const entries = run('tar', ['-tzf', tarball], root).trim().split('\n');
-    assert.ok(entries.every(name => name.startsWith('package/') && !name.split('/').includes('..')));
-    assert.ok(!entries.some(name => /\/(node_modules|__tests__|\.git)\//.test(name)));
-    for (const required of ['package/README.md', 'package/LICENSE', 'package/CHANGELOG.md']) assert.ok(entries.includes(required), `Missing ${required}.`);
-    for (const conditions of Object.values(packed.exports ?? {})) {
-      for (const target of typeof conditions === 'string' ? [conditions] : Object.values(conditions)) {
-        assert.ok(typeof target === 'string' && target.startsWith('./'));
-        assert.ok(entries.includes('package/' + target.slice(2)), `Missing export ${target}.`);
-      }
-    }
+    assertCandidateFiles(packed, entries);
     const bytes = await readFile(tarball);
     const sha256 = digest(bytes);
     const destination = path.join(output, 'packages', file);
