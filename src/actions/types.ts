@@ -108,6 +108,7 @@ export type ExecutionTrace = {
   readonly stageDescriptions?: Readonly<Record<string, string>>;
   /** Execution tree from the flow engine (stage contexts, commit history) */
   readonly executionSnapshot?: unknown;
+  readonly causeCapture?: import('../diagnostics/causeCapture.js').CauseCapture;
   /** State at each execution step (for time-travel debugging) */
   readonly historySnapshots?: readonly Readonly<Record<string, unknown>>[];
   /** Human-readable narrative of what happened */

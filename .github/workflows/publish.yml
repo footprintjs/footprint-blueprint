@@ -50,7 +50,7 @@ jobs:
         run: |
           mkdir -p release
           npm pack --ignore-scripts --pack-destination release
-          mv release/footprint-blueprint-0.5.0.tgz release/package.tgz
+          mv release/footprint-blueprint-1.0.0.tgz release/package.tgz
           node scripts/release/check-candidate.mjs release/package.tgz
           git diff --exit-code
       - name: Verify immutable review approval before an explicit publication

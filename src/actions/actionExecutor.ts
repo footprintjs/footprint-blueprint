@@ -1,4 +1,5 @@
 import { FlowChartBuilder, FlowChartExecutor, MetricRecorder } from 'footprintjs';
+import type { RecordSink } from 'foottrace/write';
 import { footprintRuntimeVersion } from '../runtimeVersion.js';
 import { immutableValue } from '../features/index.js';
 import type { ServiceBridge } from '../adapters/index.js';
@@ -8,6 +9,7 @@ import { createEvidenceCollector } from './evidence.js';
 import type { EvidenceCollectorOptions, ExecutionEvidence } from './evidence.js';
 import type { ActionAuthorizer, ActionExecutionContext, ActionHandler, ActionHandlerRegistry, ActionResult, ActionTrace, ExecutionTrace, TraceRecorder } from './types.js';
 import { captureExecutionRunOptions, type ExecutionRunOptions } from './executionOptions.js';
+import { createCauseCapture } from '../diagnostics/causeCapture.js';
 export type ActionExecutorOptions = {
   /** Trusted server/app callback. Omitting it denies every execution. */
   authorizer?: ActionAuthorizer;
@@ -23,6 +25,14 @@ export type ActionExecutorOptions = {
   projectEvidenceRequest?: (input: unknown, context: ActionExecutionContext) => unknown;
   /** Trusted request-local engine controls, never read from action input or context.meta. No limits are added by default. */
   executionOptions?: (request: Readonly<{ actionId: string; context: ActionExecutionContext }>) => ExecutionRunOptions | undefined;
+  /** Optional host-owned native recording port, allocated independently for each actual execution.
+   * Gets no input/context. Undefined disables it. Diagnostics always use report/manual mode.
+   */
+  recordSink?: (request: Readonly<{ actionId: string; recordId: string }>) => RecordSink | undefined;
+  /** Final diagnostic drain only, 0–2000 ms (default 250), without changing business-call limits. */
+  recordSinkFlushTimeoutMs?: number;
+  /** Trusted opt-in factual/control capture; never enabled from customer action input. */
+  captureCause?: boolean;
 };
 export type ActionExecutor = { execute(actionId: string, input: unknown, context: ActionExecutionContext, handler?: ActionHandler): Promise<ActionResult> };
 /** Consume genuine native promises across realms without reading ordinary thenables. */
@@ -43,6 +53,11 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
   const projectActor = options.projectEvidenceActor;
   const projectRequest = options.projectEvidenceRequest;
   const executionOptions = options.executionOptions;
+  const recordSink = options.recordSink;
+  const recordSinkFlushTimeoutMs = options.recordSinkFlushTimeoutMs ?? 250;
+  const captureCause = options.captureCause === true;
+  if (recordSink !== undefined && typeof recordSink !== 'function') throw new TypeError('recordSink must be a synchronous native sink factory');
+  if (!Number.isSafeInteger(recordSinkFlushTimeoutMs) || recordSinkFlushTimeoutMs < 0 || recordSinkFlushTimeoutMs > 2000) throw new TypeError('recordSinkFlushTimeoutMs must be an integer from 0 to 2000');
   const reportObserver = (error: unknown) => {
     try {
       const result: unknown = onTraceError?.(error);
@@ -122,19 +137,43 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
         }), 'execute-action', 'Invoke the registered handler or profile adapter')
         .addFunction('AcknowledgeAction', () => undefined, 'acknowledge-action', 'Acknowledge the completed operation')
         .build();
-      const runtime = new FlowChartExecutor(chart, { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta' });
-      runtime.setRedactionPolicy({ keys: ['input', 'args', 'result', 'output', 'error', 'message', 'cause', 'meta', 'userId'] });
+      const causeObserver = captureCause ? createCauseCapture() : undefined;
+      const nativeOptions = { readTracking: 'summary', writeTracking: 'summary', commitValues: 'delta', ...(captureCause ? { writeProvenance: 'reads-prefix' as const } : {}) } as const;
+      let runtime: FlowChartExecutor;
+      let sinkAttached = false;
+      try {
+        const adapter = recordSink?.(Object.freeze({ actionId, recordId: globalThis.crypto.randomUUID() }));
+        if (consumeNativePromise(adapter)) throw new TypeError('recordSink must return a native sink synchronously');
+        runtime = new FlowChartExecutor(chart, { ...nativeOptions,
+          ...(adapter !== undefined ? { sink: { adapter, onFailure: 'report', flush: 'manual' } } : {}) });
+        sinkAttached = adapter !== undefined;
+      } catch {
+        // A diagnostics setup failure must not make an authoritative write retryable.
+        reportObserver(new Error('Native record sink is unavailable'));
+        runtime = new FlowChartExecutor(chart, nativeOptions);
+      }
+      runtime.setRedactionPolicy({ keys: ['input', 'args', 'result', 'output', 'error', 'message', 'cause', 'meta', 'userId', 'recordSinkError'],
+        diagnostics: { keys: ['errors.recordSinkError'] } });
       const metrics = new MetricRecorder('action-stage-metrics');
       runtime.attachScopeRecorder(metrics);
+      if (causeObserver) runtime.attachFlowRecorder(causeObserver.recorder);
       try { await runtime.run(captureExecutionRunOptions(executionOptions?.(Object.freeze({ actionId, context })))); } catch (error) { if (!failure && !acknowledged) failure = error; else if (acknowledged) reportObserver(error); }
+      if (sinkAttached) {
+        try {
+          const flush = await runtime.flushRecord({ timeoutMs: recordSinkFlushTimeoutMs });
+          if (flush.failed || flush.pending) reportObserver(new Error(flush.pending ? 'Native record flush is pending' : 'Native record flush failed'));
+        } catch { reportObserver(new Error('Native record flush is unavailable')); }
+      }
       const completedAt = Date.now();
       let executionTrace: ExecutionTrace | undefined;
       let executionSnapshot: unknown;
+      let causeCapture: ReturnType<ReturnType<typeof createCauseCapture>['snapshot']> | undefined;
       let engineRunId: string | undefined;
       try {
         const snapshot = runtime.getSnapshot({ redact: true });
         executionSnapshot = snapshot;
         engineRunId = snapshot.runId;
+        if (causeObserver) causeCapture = causeObserver.snapshot(snapshot);
       } catch (error) { reportObserver(error); }
       const details = failure && typeof failure === 'object' ? failure as Record<string, unknown> : {};
       // Provider messages/causes and arbitrary provider strings stay outside the receipt.
@@ -157,6 +196,7 @@ export function createActionExecutor(registry: ActionRegistry, bridge?: ServiceB
           startedAt: new Date(startedAt).toISOString(), completedAt: new Date(completedAt).toISOString(),
           ...(acknowledged ? {} : { errorMessage: 'Action execution rejected' }),
           ...(executionSnapshot !== undefined ? { executionSnapshot } : {}),
+          ...(causeCapture ? { causeCapture } : {}),
           ...(evidence ? { evidence } : {}), runtime: { library: 'footprintjs', version: footprintRuntimeVersion },
           stageMetrics: [...metrics.getMap().values()].map(metric => ({ stageName: metric.stageName, durationMs: metric.duration })),
         }) as ExecutionTrace;

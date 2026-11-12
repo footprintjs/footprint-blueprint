@@ -1,5 +1,5 @@
 packages:
   - .
 minimumReleaseAgeExclude:
-  - footprintjs@10.1.0
-  - foottrace@1.1.0
+  - footprintjs@12.0.0
+  - foottrace@1.15.0

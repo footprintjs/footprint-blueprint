@@ -22,6 +22,27 @@ function fixture() {
   return { packed, entries: [...targets] };
 }
 
+
+function checkChangedCheckout(packed, entries) {
+  const directory = mkdtempSync(join(tmpdir(), 'candidate-changed-checkout-'));
+  try {
+    const checkerRoot = join(directory, 'checker');
+    const release = join(checkerRoot, 'scripts/release'); mkdirSync(release, { recursive: true });
+    writeFileSync(join(checkerRoot, 'package.json'), JSON.stringify(packed));
+    for (const name of ['check-candidate.mjs', 'candidate.mjs', 'guards.mjs', 'reviewed.json'])
+      writeFileSync(join(release, name), readFileSync(join(root, 'scripts/release', name)));
+    for (const entry of entries) {
+      const target = join(directory, entry); mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, entry === 'package/package.json' ? JSON.stringify(packed) : 'fixture file\n');
+    }
+    const archive = join(directory, 'candidate.tgz');
+    execFileSync('tar', ['-czf', archive, '-C', directory, 'package']);
+    return spawnSync(process.execPath, [join(release, 'check-candidate.mjs'), archive], {
+      cwd: checkerRoot, encoding: 'utf8', timeout: 10000,
+    });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+}
+
 test('changed prose and discovery metadata are valid source candidates, not historical release approval', () => {
   const { packed, entries } = fixture();
   const current = clone(source);
@@ -103,23 +124,20 @@ test('the real candidate CLI checks packed bytes against this checkout and expos
 });
 
 
-test('candidate CLI retains the reviewed package identity constraints even for a self-consistent changed checkout', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'candidate-identity-fixture-'));
-  try {
-    const { packed, entries } = fixture(); packed.version = '99.0.0';
-    const checkerRoot = join(directory, 'checker');
-    const release = join(checkerRoot, 'scripts/release'); mkdirSync(release, { recursive: true });
-    writeFileSync(join(checkerRoot, 'package.json'), JSON.stringify(packed));
-    for (const name of ['check-candidate.mjs', 'candidate.mjs', 'guards.mjs', 'reviewed.json']) writeFileSync(join(release, name), readFileSync(join(root, 'scripts/release', name)));
-    for (const entry of entries) {
-      const target = join(directory, entry); mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, entry === 'package/package.json' ? JSON.stringify(packed) : 'fixture file\n');
-    }
-    const archive = join(directory, 'candidate.tgz');
-    execFileSync('tar', ['-czf', archive, '-C', directory, 'package']);
-    const result = spawnSync(process.execPath, [join(release, 'check-candidate.mjs'), archive], { cwd: checkerRoot, encoding: 'utf8', timeout: 10000 });
-    assert.notEqual(result.status, 0); assert.match(result.stderr, /Unexpected version/);
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+test('candidate CLI retains trusted publisher identity even for a self-consistent changed checkout', () => {
+  const changes = [
+    [p => { p.name = 'untrusted-package'; }, /Unexpected package/],
+    [p => { p.repository.url = 'git+https://github.com/untrusted/repository.git'; }, /trusted publisher/],
+    [p => { p.publishConfig.access = 'restricted'; }, /public/],
+    [p => { p.publishConfig.registry = 'https://untrusted.invalid/'; }, /registry.npmjs.org/],
+    [p => { p.private = true; }, /cannot be private/],
+  ];
+  for (const [change, reason] of changes) {
+    const { packed, entries } = fixture(); change(packed);
+    const result = checkChangedCheckout(packed, entries);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, reason);
+  }
 });
 
 
@@ -131,4 +149,33 @@ test('local pnpm file validation does not relax ordinary npm full-manifest equal
   assert.throws(() => assertCandidate(packed, source, entries), /complete current source manifest/);
   const missing = entries.find(entry => entry.startsWith('package/dist/'));
   assert.throws(() => assertCandidateFiles(packed, entries.filter(entry => entry !== missing)), /Missing package target/);
+});
+
+test('source candidate CLI accepts current stable versions and dependencies without immutable release approval', () => {
+  const { packed, entries } = fixture();
+  packed.version = '1.0.0';
+  packed.dependencies.footprintjs = '12.0.0';
+  packed.dependencies.foottrace = '1.15.0';
+  if (Object.hasOwn(packed.dependencies, 'footprint-blueprint'))
+    packed.dependencies['footprint-blueprint'] = '1.0.0';
+  const before = readFileSync(join(root, 'scripts/release/reviewed.json'), 'utf8');
+  const result = checkChangedCheckout(packed, entries);
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.version, '1.0.0');
+  assert.equal(report.mode, 'source-candidate');
+  assert.equal(report.reviewed, false);
+  assert.equal(readFileSync(join(root, 'scripts/release/reviewed.json'), 'utf8'), before);
+});
+
+test('source candidates reject malformed or prerelease source versions and dependencies', () => {
+  const { entries } = fixture();
+  for (const version of ['1', '1.0', '01.0.0', '1.0.0-rc.1', '1.0.0+build', '9007199254740992.0.0', null, 1]) {
+    const current = clone(source); current.version = version;
+    assert.throws(() => assertCandidate(clone(current), current, entries), /stable source version/);
+  }
+  for (const value of ['01.0.0', '9007199254740992.0.0', null, 1]) {
+    const current = clone(source); current.dependencies.footprintjs = value;
+    assert.throws(() => assertCandidate(clone(current), current, entries), /exact portable stable/);
+  }
 });

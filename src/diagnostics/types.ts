@@ -1,7 +1,9 @@
 /** Pure diagnostic contracts. Logical labels are opaque and never rendered in findings. */
 export type BoundaryErrorCategory = 'timeout' | 'rate-limited' | 'server' | 'network' | 'auth' | 'permanent' | 'unknown';
 export type BoundaryOutcome = 'ok' | 'failed' | 'timeout' | 'aborted' | 'blocked';
-export type AttemptDecision = { readonly next: 'retry' | 'done' | 'stop'; readonly reason: 'succeeded' | 'paused' | 'aborted' | 'exhausted' | 'declined' | 'no-time-left' | 'retryable' };
+/** Stored diagnostic vocabulary. Older records keep their original `succeeded` label. */
+export const attemptDecisionReasons = ['answered', 'succeeded', 'paused', 'aborted', 'exhausted', 'declined', 'no-time-left', 'retryable'] as const;
+export type AttemptDecision = { readonly next: 'retry' | 'done' | 'stop'; readonly reason: typeof attemptDecisionReasons[number] };
 /** A deliberately small projection; raw messages, causes, headers and provider payloads are excluded. */
 export interface BoundaryErrorFields {
   readonly name?: string;
@@ -51,6 +53,8 @@ export interface FailureNativeAttempt extends AttemptDecision {
   readonly attempt: number;
   readonly of?: number;
   readonly kind: 'stage' | 'call' | 'observed';
+  readonly target?: string;
+  readonly source?: string;
   readonly outcome: 'ok' | 'failed' | 'timeout' | 'aborted' | 'paused';
   readonly category?: BoundaryErrorCategory;
   readonly durationMs: number;
@@ -80,7 +84,41 @@ export interface FailureRecording {
   readonly flowId: string;
   readonly nativeSnapshot: FailureNativeSnapshot | null;
   readonly boundaryEvidence: readonly BoundaryEvidence[];
+  /** Optional production observer extension. Legacy schema1 records remain valid without these fields. */
+  readonly physicalEvidence?: readonly PhysicalBoundaryEvidence[];
+  readonly coverage?: BoundaryRecorderCoverage;
   readonly diagnostics: { readonly persistence: 'stored' | 'failed'; readonly observer: 'ok' | 'failed'; readonly code?: string };
+}
+/** A host-selected request lookup reference, not proof of provider-internal execution or delivery. */
+export interface BoundaryRequestReference { readonly namespace: string; readonly id: string }
+/** Adapter assertions tied to real native observed records; never independent proof of provider delivery. */
+export interface PhysicalBoundaryEvidence {
+  readonly attemptId: string;
+  readonly parentAttemptId: string;
+  readonly source: string;
+  readonly phase: 'response-complete' | 'headers' | 'dispatch';
+  readonly startedAt: number;
+  readonly durationMs: number;
+  readonly reportedAttempt?: number;
+  readonly reportedMaximum?: number;
+  readonly timeoutMs?: number;
+  readonly timeLeftMs?: number;
+  readonly nativeDecisionMeaning: 'engine-interpretation';
+  readonly sdkRetryDecision: 'unknown';
+  readonly requestReference?: BoundaryRequestReference;
+}
+export interface BoundaryRecorderCoverage {
+  readonly logicalCalls: number;
+  readonly physicalObservations: number;
+  readonly inFlightCalls: number;
+  readonly droppedEvents: number;
+  readonly unboundObservations: number;
+  readonly lateReports: number;
+  /** Explicit host omission notices, not a known count of omitted wire attempts. Optional on earlier records. */
+  readonly omittedObservations?: number;
+  readonly physicalAttemptCounts: 'reported-only';
+  readonly sdkRetryDecisions: 'unknown';
+  readonly externalDelivery: 'unknown';
 }
 export interface FailureFinding {
   readonly code: string;
@@ -100,6 +138,10 @@ export interface FailureDiagnosis {
     readonly nativeRecording: 'present' | 'missing';
     readonly boundaryEvidence: 'recorded' | 'not-recorded';
     readonly nativeAttemptRecords: number | null;
+    readonly logicalSDKCalls: number | null;
+    readonly physicalTransportAttempts: number | null;
+    readonly physicalAttemptCounts: 'reported-only' | 'not-recorded';
+    readonly sdkRetryDecisions: 'unknown';
     readonly attemptBinding: 'complete' | 'partial';
     readonly attemptsTruncated: boolean;
     readonly logicalRetryLinks: 'recorded' | 'not-recorded';

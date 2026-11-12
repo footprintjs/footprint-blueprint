@@ -1,3 +1,34 @@
+# 1.0.0 — FootPrint 12 adoption (unreleased)
+
+- Migration: require FootPrint 12.0.0 and Foottrace 1.15.0 on Node 24.15–24.x.
+- Accept the engine’s current `answered` attempt decision while reading retained `succeeded` records without rewriting their evidence. Consumers handling every decision reason must include `answered`.
+- Preserve native partial-write associations for Foottrace cause/impact readers; a recorded predecessor is distinct from a proven computation.
+- Retain the published 0.9.0 functionality and current source checks. Missing, incomplete or failed capture stays unknown; no capture defaults, provider policy or business acknowledgement changes.
+- Validate source candidates against the current source manifest, separately from the unchanged immutable publication approval. This change does not approve publication.
+
+# 0.9.0 — expected-execution evidence
+
+- Add the explicit, optional `footprint-blueprint/diagnostics/coverage` import for declared expected work beside genuine retained commits.
+- Reuse Foottrace requirement checks and gap reasons: observation proves execution evidence only; missing steps and unknown inventories remain unresolved.
+- Keep descriptions outside evidence references, validate exact run and scope bindings, bound and detach input/output, and leave native graph records unchanged.
+- No model, storage provider, retry or business action is added.
+
+Prepared 2026-10-18. Publication, registry-byte verification and application deployment are separate release steps.
+
+## 0.7.0 — local connected-record candidate (not published)
+
+- Add `footprint-blueprint/records/object-store`: a provider-neutral native Foottrace sink, immutable per-run objects, immediate bounded writes, cancellation on drain timeout, and a bounded read-only reader. The native record remains the source for replay, incomplete runs, gaps and unread entries.
+- Add optional per-action native record-sink factories through ActionExecutor and Platform. Storage outages remain diagnostic and cannot reverse acknowledged business work.
+- Retain optional adapter-reported provider request references on bound physical observations. These opaque lookup aids do not prove provider-internal execution or an outage; native attempt identities and unknown-effect rules remain authoritative.
+- Preserve the published FootprintJS10.1/Foottrace1.1 asynchronous durability contract: only acknowledged objects are known stored; an unacknowledged tail stays unknown after a hard kill. Add a real SIGKILL/fresh-reader regression and browser-only public import checks.
+
+## 0.6.0 — local provider-evidence candidate (not published)
+
+- Add the explicit `footprint-blueprint/diagnostics/runtime` request-local native boundary collector, without changing the pure diagnostics runtime export surface.
+- Bind logical SDK calls and real transport observations from public FootprintJS call/onAttempt APIs, with safe normalization, bounded frozen snapshots and explicit omitted/late/in-flight coverage.
+- Extend schema-1 recordings with optional physical evidence and coverage, preserving legacy inputs. Validate genuine record kinds, identities, sources and timing before diagnosis.
+- Separate logical calls from physical reports and engine-observed interpretation from SDK retry policy. Preserve unknown write effects and never infer a provider outage, guaranteed cancellation or zero sends from absent evidence.
+
 ## 0.5.0 — local diagnostics candidate (not published)
 
 - Add the pure, typed `footprint-blueprint/diagnostics` subpath with adapter-boundary normalization and deterministic stored-record diagnosis.
@@ -15,6 +46,12 @@
 Publication and final stable-package validation are pending.
 
 # Changelog
+
+## 0.8.0 — local release candidate
+
+- Add the optional `/diagnostics/cause` host service using public Foottrace1.4 cause/impact queries, bounded discovery and honest incomplete coverage.
+- Add a bounded, versioned host factual/control observer and trusted action/platform capture opt-in. Keep messages, payloads and provider-internal conclusions outside its maps.
+- Pin the record runtime to Foottrace1.4.0; no npm publication or cloud deployment is implied by this candidate.
 
 ## 0.4.1-gamma.1 — private coordinated engine candidate
 
