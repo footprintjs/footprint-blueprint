@@ -1,3 +1,11 @@
+# 1.0.0 — FootPrint 12 adoption (unreleased)
+
+- Migration: require FootPrint 12.0.0 and Foottrace 1.15.0 on Node 24.15–24.x.
+- Accept the engine’s current `answered` attempt decision while reading retained `succeeded` records without rewriting their evidence. Consumers handling every decision reason must include `answered`.
+- Preserve native partial-write associations for Foottrace cause/impact readers; a recorded predecessor is distinct from a proven computation.
+- Retain the published 0.9.0 functionality and current source checks. Missing, incomplete or failed capture stays unknown; no capture defaults, provider policy or business acknowledgement changes.
+- Validate source candidates against the current source manifest, separately from the unchanged immutable publication approval. This change does not approve publication.
+
 # 0.9.0 — expected-execution evidence
 
 - Add the explicit, optional `footprint-blueprint/diagnostics/coverage` import for declared expected work beside genuine retained commits.

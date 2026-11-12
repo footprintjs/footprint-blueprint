@@ -68,7 +68,7 @@ export function createCauseCapture() {
   return Object.freeze({ recorder, snapshot(nativeSnapshot: unknown): CauseCapture {
     const descriptor = nativeSnapshot && typeof nativeSnapshot === 'object' ? Object.getOwnPropertyDescriptor(nativeSnapshot, 'runId') : undefined;
     const nativeRunId = descriptor && 'value' in descriptor ? descriptor.value : undefined;
-    // Published10.1 cannot prove that every terminal commit failure emitted a stage error.
+    // This observer does not prove that every terminal commit failure emitted a stage error.
     const complete = ended && !dropped && !failed && !resumed && nativeRunId === runId;
     const controlDeps: Record<string, { deciderId: string }> = Object.create(null);
     for (const stage of stages) { const dependency = control.lookup(stage); if (dependency) controlDeps[stage] = Object.freeze({ deciderId: dependency.deciderId }); }

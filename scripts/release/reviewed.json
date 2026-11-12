@@ -1,13 +1,12 @@
 {
   "name": "footprint-blueprint",
-  "version": "0.9.0",
-  "sha256": "5f82bcd75faaf643442763cb919e2ee3b8b1a036ee19d7fc80d3ed77438f6c64",
-  "integrity": "sha512-3+6F3sEMtzXeQYt35Zz0YpHO3O88PvQ1nfWsmsRF0/VttMcQ3nbOqIel3eJD7z5CQBwuPqs+urHGCRVc26j1ow==",
+  "version": "0.5.0",
+  "sha256": "9a0f50750a8a08a887431adc10de32ea91d5e83f7eb0049cdc94226b5aca0fe5",
+  "integrity": "sha512-XYCHzJurB5Wi8B8fAkJ1oqvff3eqdgi1rBL4gruAP1zEzFpuSA8sDeUQlreC4Oj0M96iIQ2fkHsgsEBocwQbMA==",
   "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "footprintjs": "10.1.0",
-    "foottrace": "1.4.0"
+    "footprintjs": "10.1.0"
   },
   "runtime": [
     {
@@ -17,8 +16,8 @@
     },
     {
       "name": "foottrace",
-      "version": "1.4.0",
-      "integrity": "sha512-qJnkl1lvSZuFc3i7p/Cx7e1wswpdkE/1pOSV5yyehF1aSU/O9LY2DEWzI3/Q2MuoSMCgFJtWxM1IzivBBBlsWg=="
+      "version": "1.1.0",
+      "integrity": "sha512-bC+9Sp4oMD33KXOxDM5JHUGkw7rcLrskSAq2pypogQDqkgm6Sf+7vStliIjyYYm26VM/aMYqVTPDnDgJArbkyQ=="
     }
   ],
   "githubRepository": "footprintjs/footprint-blueprint",

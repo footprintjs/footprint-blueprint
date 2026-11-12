@@ -76,15 +76,31 @@ test('both immutable digest checks independently reject changed bytes', () => {
   assert.throws(() => assertArchive(bytes, { sha256, integrity: 'sha512-other' }), /Archive integrity differs/);
 });
 
-test('all existing release runner modes refuse an unreviewed candidate before registry or publication effects', async t => {
+test('all release modes refuse a checked current-source archive before registry or publication effects', async t => {
   const directory = mkdtempSync(join(tmpdir(), 'source-release-boundary-'));
   try {
     const packageDir = join(directory, 'package');
     mkdirSync(packageDir);
     const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-    writeFileSync(join(packageDir, 'package.json'), JSON.stringify({ ...source, description: 'Changed candidate prose' }));
+    writeFileSync(join(packageDir, 'package.json'), JSON.stringify(source));
+    const targets = new Set(['README.md', 'LICENSE', 'CHANGELOG.md']);
+    function collect(value) {
+      if (typeof value === 'string') targets.add(value.replace(/^\.\//, ''));
+      else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+    }
+    for (const field of ['main', 'types', 'module', 'exports']) collect(source[field]);
+    for (const target of targets) {
+      const filename = join(packageDir, target);
+      mkdirSync(resolve(filename, '..'), { recursive: true });
+      writeFileSync(filename, 'inert source-candidate packaging fixture\n');
+    }
     const archive = join(directory, 'candidate.tgz');
     execFileSync('tar', ['-czf', archive, '-C', directory, 'package']);
+    const checked = spawnSync(process.execPath, [resolve(root, 'scripts/release/check-candidate.mjs'), archive], {
+      cwd: root, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(JSON.parse(checked.stdout).reviewed, false);
     const fence = join(directory, 'fence.mjs');
     const network = join(directory, 'network-attempted');
     const npmAttempt = join(directory, 'npm-attempted');

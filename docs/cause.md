@@ -31,7 +31,7 @@ the capture. An observed transport attempt's interpreted `next`/`reason` does no
 retry policy. A second observed attempt supports a retry; only an actual stage retry series with
 more than one declared attempt supports the logical stop mark. A physical call is not a logical
 stage exhaustion. Each mark has at most16 references, each stage at most32 marks; omissions,
-terminal failed10.1 runs, pause/resume boundaries and unobserved tails remain incomplete. Causes,
+terminal failed runs, pause/resume boundaries and unobserved tails remain incomplete. Causes,
 candidates and impact remain queryable, but an absent final failure boundary prevents a definite
 root. This integration does not claim engine C2 completeness.
 

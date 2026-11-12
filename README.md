@@ -8,7 +8,7 @@ For platform developers serving several customer profiles from one codebase.
 
 ## One package, focused modules
 
-**`footprint-blueprint@0.9.0`** pairs with optional `smallbusiness-footprint@0.9.0` and pins the separate `footprintjs@10.1.0` engine with `foottrace@1.4.0`. It adds optional expected-execution coverage beside retained cause evidence: observed execution, missing proof and unknown inventories stay distinct. Incremental object-store records, provider lookup references and the existing six framework modules remain available through focused import paths. Publication and deployment are verified separately from a source build.
+**Unreleased 1.0.0 source candidate:** requires `footprintjs@12.0.0` and `foottrace@1.15.0`, retaining the published 0.9.0 modules, optional expected-execution coverage, object-store records and provider lookup references. Current engine decisions use `answered`; stored `succeeded` labels remain readable. Missing capture and unknown inventories remain unresolved. See the [migration notes](docs/MIGRATION-1.0.md). This source branch does not authorize publication.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -313,7 +313,7 @@ Blueprint captures this narrow envelope and delegates validation, cancellation, 
 
 ### Incremental native records in object storage
 
-The optional `footprint-blueprint/records/object-store` import supplies `createObjectRecordSink` and `readObjectRecord`. Inject your own immutable object-storage port; no cloud SDK, credential lookup, polling or model call is built in. Pass the sink to FootprintJS10.1's native executor sink option. The read-only reader accepts only `get`/`list` and uses Foottrace1.1's stored-record reader, without reconstructing a snapshot.
+The optional `footprint-blueprint/records/object-store` import supplies `createObjectRecordSink` and `readObjectRecord`. Inject your own immutable object-storage port; no cloud SDK, credential lookup, polling or model call is built in. Pass the sink to FootPrint's native executor sink option. The read-only reader accepts only `get`/`list` and uses Foottrace's stored-record reader, without reconstructing a snapshot.
 
 The adapter sends each entry as it arrives, caps queued bytes and concurrent requests, and stops diagnostic I/O at its flush deadline. Already acknowledged entries survive a killed writer; pending entries may be lost. A terminal marker, native gaps, unread rows and missing object sequences are reported separately. Configure privacy rules before execution and use opaque deployment/run IDs. See [the design and test contract](docs/records-object-store-design.md) for port types, limits, isolation and the real process-kill proof. Hosts should allow their native flush wait to exceed the adapter's own flush timeout so cancellation finishes before return.
 

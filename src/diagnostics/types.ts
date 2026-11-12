@@ -1,7 +1,9 @@
 /** Pure diagnostic contracts. Logical labels are opaque and never rendered in findings. */
 export type BoundaryErrorCategory = 'timeout' | 'rate-limited' | 'server' | 'network' | 'auth' | 'permanent' | 'unknown';
 export type BoundaryOutcome = 'ok' | 'failed' | 'timeout' | 'aborted' | 'blocked';
-export type AttemptDecision = { readonly next: 'retry' | 'done' | 'stop'; readonly reason: 'succeeded' | 'paused' | 'aborted' | 'exhausted' | 'declined' | 'no-time-left' | 'retryable' };
+/** Stored diagnostic vocabulary. Older records keep their original `succeeded` label. */
+export const attemptDecisionReasons = ['answered', 'succeeded', 'paused', 'aborted', 'exhausted', 'declined', 'no-time-left', 'retryable'] as const;
+export type AttemptDecision = { readonly next: 'retry' | 'done' | 'stop'; readonly reason: typeof attemptDecisionReasons[number] };
 /** A deliberately small projection; raw messages, causes, headers and provider payloads are excluded. */
 export interface BoundaryErrorFields {
   readonly name?: string;

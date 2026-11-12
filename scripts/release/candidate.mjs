@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
 
+const stableVersion = value => typeof value === 'string'
+  && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value)
+  && value.split('.').every(part => Number.isSafeInteger(Number(part)));
+
+/** Source identity is fixed; a source version/dependency change is not release approval. */
+export function assertCandidateIdentity(source, trusted) {
+  assert.equal(source.name, trusted.name, 'Unexpected package.');
+  assert.equal(source.repository?.url, trusted.repository, 'Repository must match the trusted publisher.');
+  assert.equal(source.publishConfig?.access, 'public');
+  assert.equal(source.publishConfig?.registry, 'https://registry.npmjs.org/');
+}
+
 // Shared by source CI and local candidate preparation. This validates packaging,
 // never the immutable approval record consumed by the separate release runner.
 export function assertCandidate(packed, source, entries) {
   assert.deepEqual(packed, source, 'Packed manifest must match the complete current source manifest.');
   assert.notEqual(packed.private, true, 'A public source candidate cannot be private.');
-  assert.ok(Object.values(packed.dependencies ?? {}).every(value => typeof value === 'string' && /^\d+\.\d+\.\d+$/.test(value)), 'Candidate dependencies must remain exact portable stable versions.');
+  assert.ok(stableVersion(packed.version), 'Candidate must declare a stable source version.');
+  assert.ok(Object.values(packed.dependencies ?? {}).every(stableVersion), 'Candidate dependencies must remain exact portable stable versions.');
   assertCandidateFiles(packed, entries);
 }
 

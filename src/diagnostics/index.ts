@@ -1,12 +1,13 @@
 import { readBoundaryRequestReference } from './requestReference.js';
 import { errorCategory, AttemptTimeoutError } from 'footprintjs';
+import { attemptDecisionReasons } from './types.js';
 import type { BoundaryErrorCategory, BoundaryErrorFields, BoundaryNormalizationOptions, NormalizedBoundaryError, FailureRecording, FailureDiagnosis, FailureFinding, FailureNativeSnapshot, FailureNativeNode, FailureNativeAttempt } from './types.js';
 export type * from './types.js';
 
 const CATEGORIES = ['timeout', 'rate-limited', 'server', 'network', 'auth', 'permanent', 'unknown'];
 const OUTCOMES = ['ok', 'failed', 'timeout', 'aborted', 'blocked'];
 const NATIVE_OUTCOMES = ['ok', 'failed', 'timeout', 'aborted', 'paused'];
-const REASONS = ['succeeded', 'paused', 'aborted', 'exhausted', 'declined', 'no-time-left', 'retryable'];
+const REASONS: readonly string[] = attemptDecisionReasons;
 const NEXT = ['retry', 'done', 'stop'];
 const LOCAL_CODES = ['CIRCUIT_OPEN', 'BUDGET_PREFLIGHT_REJECTED', 'IDEMPOTENCY_KEY_REQUIRED', 'MALFORMED_RESPONSE', 'LOCAL_DEPENDENCY_BLOCKED'];
 const LOCAL_FINDINGS = {
