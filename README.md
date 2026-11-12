@@ -8,7 +8,7 @@ For platform developers serving several customer profiles from one codebase.
 
 ## One package, focused modules
 
-**Unreleased 1.0.0 source candidate:** requires `footprintjs@12.0.0` and `foottrace@1.15.0`, retaining the published 0.9.0 modules, optional expected-execution coverage, object-store records and provider lookup references. Current engine decisions use `answered`; stored `succeeded` labels remain readable. Missing capture and unknown inventories remain unresolved. See the [migration notes](docs/MIGRATION-1.0.md). This source branch does not authorize publication.
+**Version 1.0.0:** requires `footprintjs@12.0.0` and `foottrace@1.15.0`, retaining the published 0.9.0 modules, optional expected-execution coverage, object-store records and provider lookup references. Current engine decisions use `answered`; stored `succeeded` labels remain readable. Missing capture and unknown inventories remain unresolved. See the [migration notes](docs/MIGRATION-1.0.md). Source checks and immutable release approval remain separate.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -121,7 +121,7 @@ The modules remain separate source and test boundaries inside one package. Inter
 
 `footprint-blueprint/actions/evidence` is an alias of the same pure Evidence entry. The root entry provides Platform's convenience exports. Advanced module-specific APIs remain available from their own subpaths.
 
-The inherited test suite contains 440 Blueprint tests. The optional commerce library contains 217 more. Consult the generated release validation record for the actual results from the consolidated candidate.
+Tests use local fixtures. Consult the exact-head hosted checks and release validation record for the actual results.
 
 ## How it works
 
@@ -266,7 +266,7 @@ Nothing in this framework is specific to schools, e-commerce, healthcare, or any
 
 [footprintjs](https://github.com/footprintjs/footPrint) is the execution engine: it runs flowcharts and records the stages and state made visible by the application. Shared execution receipts supplement those native recordings with host-reported observations, effect phases, outcomes and related runs. Their coverage and limitations remain explicit; they do not establish complete database causality or private model reasoning.
 
-footprint-blueprint defines modules, profiles, gates, adapters and actions. Its action executor runs deterministic authorize/validate/execute/acknowledge stages with FootprintJS 10. Domain-specific workflows still own the business operations and storage/provider transactions.
+footprint-blueprint defines modules, profiles, gates, adapters and actions. Its action executor runs deterministic authorize/validate/execute/acknowledge stages with FootPrint 12. Domain-specific workflows still own the business operations and storage/provider transactions.
 
 A domain-specific wrapper (e.g., SchoolFootprint) brings them together: blueprint modules become footprintjs services, each service is a flowchart with stages, and the manifest tracks which services ran and what happened.
 

@@ -1,0 +1,25 @@
+{
+  "name": "footprint-blueprint",
+  "version": "0.5.0",
+  "sha256": "9a0f50750a8a08a887431adc10de32ea91d5e83f7eb0049cdc94226b5aca0fe5",
+  "integrity": "sha512-XYCHzJurB5Wi8B8fAkJ1oqvff3eqdgi1rBL4gruAP1zEzFpuSA8sDeUQlreC4Oj0M96iIQ2fkHsgsEBocwQbMA==",
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "footprintjs": "10.1.0"
+  },
+  "runtime": [
+    {
+      "name": "footprintjs",
+      "version": "10.1.0",
+      "integrity": "sha512-ZV8y5tsiF5fwd8A5ef64Gu4V4VutXa5LQMtcmE8rxrO98ZJhoQksVbDqIoy2k/NiuTzgLnrrN6Zn5fA5Cs/++A=="
+    },
+    {
+      "name": "foottrace",
+      "version": "1.1.0",
+      "integrity": "sha512-bC+9Sp4oMD33KXOxDM5JHUGkw7rcLrskSAq2pypogQDqkgm6Sf+7vStliIjyYYm26VM/aMYqVTPDnDgJArbkyQ=="
+    }
+  ],
+  "githubRepository": "footprintjs/footprint-blueprint",
+  "repository": "git+https://github.com/footprintjs/footprint-blueprint.git"
+}

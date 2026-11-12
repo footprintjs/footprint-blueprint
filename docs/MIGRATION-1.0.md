@@ -1,6 +1,6 @@
 # Migration to 1.0.0
 
-This is an unreleased source candidate. Source verification and publication approval are separate: the immutable approval record is unchanged and cannot publish these bytes.
+Version 1.0.0 adopts the runtime contracts below. Source verification and publication approval are separate: the release workflow accepts only the exact archive selected by its reviewed approval record.
 
 ## Runtime requirements
 

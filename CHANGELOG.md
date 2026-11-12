@@ -1,10 +1,10 @@
-# 1.0.0 — FootPrint 12 adoption (unreleased)
+# 1.0.0 — 2026-11-12
 
 - Migration: require FootPrint 12.0.0 and Foottrace 1.15.0 on Node 24.15–24.x.
 - Accept the engine’s current `answered` attempt decision while reading retained `succeeded` records without rewriting their evidence. Consumers handling every decision reason must include `answered`.
 - Preserve native partial-write associations for Foottrace cause/impact readers; a recorded predecessor is distinct from a proven computation.
 - Retain the published 0.9.0 functionality and current source checks. Missing, incomplete or failed capture stays unknown; no capture defaults, provider policy or business acknowledgement changes.
-- Validate source candidates against the current source manifest, separately from the unchanged immutable publication approval. This change does not approve publication.
+- Validate source candidates against the current source manifest, separately from exact-byte publication approval.
 
 # 0.9.0 — expected-execution evidence
 
@@ -53,14 +53,14 @@ Publication and final stable-package validation are pending.
 - Add a bounded, versioned host factual/control observer and trusted action/platform capture opt-in. Keep messages, payloads and provider-internal conclusions outside its maps.
 - Pin the record runtime to Foottrace1.4.0; no npm publication or cloud deployment is implied by this candidate.
 
-## 0.4.1-gamma.1 — private coordinated engine candidate
+## Private engine preparation — historical, unpublished
 
-- Pin the reviewed `footprintjs@10.1.0-gamma.1` runtime without changing default action behavior.
+- Prepared a private engine candidate without changing default action behavior.
 - Read trace runtime version from the engine export rather than a hardcoded application value.
 - Add optional host-owned deadline, signal and correlation pass-through for Actions and Platform, with a closed payload-free boundary.
 - Preserve existing authorization, evidence, adapter and acknowledged-write invariants.
 
-This is a local Gamma candidate, not an npm publication.
+This historical local candidate was not an npm publication.
 
 ## 0.4.0 — prepared single-package release
 
