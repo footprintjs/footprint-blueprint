@@ -1,13 +1,13 @@
 # Source candidate and release runbook
 
-The current source candidates are Blueprint 1.0.0 and Smallbusiness 1.0.0, adopting FootPrint 12.0.0 and Foottrace 1.15.0. These version labels describe unapproved source candidates, not registry publication or release approval. Keep prior published archives intact; `scripts/release/reviewed.json` remains the historical approval record until a separate exact-byte review authorizes a new release.
+Blueprint 1.0.0 and Smallbusiness 1.0.0 adopt FootPrint 12.0.0 and Foottrace 1.15.0. Keep prior published archives intact. The workflow binds publication to the exact archive identity in `scripts/release/reviewed.json`; prior approval records remain in version control and as separately named files. A version label or passing source check alone does not establish npm publication.
 
-| Package | Source candidate | Exact runtime dependency declarations |
+| Package | Version | Exact runtime dependency declarations |
 | --- | --- | --- |
 | `footprint-blueprint` | 1.0.0 | `footprintjs@12.0.0`, `foottrace@1.15.0`, `ajv@8.20.0`, `ajv-formats@3.0.1` |
 | `smallbusiness-footprint` | 1.0.0 | `footprint-blueprint@1.0.0`, `footprintjs@12.0.0`, `foottrace@1.15.0`, `zod@4.6.5` |
 
-Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the checked `vendor/footprint-blueprint-1.0.0.tgz` source archive; its public manifest keeps the exact portable `1.0.0` dependency. The local archive allows consumer verification before Blueprint is published; it is not registry publication or immutable release approval. Freeze its exact source identity and integrity in the verification receipt. The packed archive must not include that development override or vendor archive.
+Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the final `vendor/footprint-blueprint-1.0.0-release.tgz` release archive; its public manifest keeps the exact portable `1.0.0` dependency. The local archive allows consumer verification before Blueprint is published; it is not registry publication or immutable release approval. Freeze its exact source identity and integrity in the verification receipt. The packed archive must not include that development override or vendor archive.
 
 ## Verify source and build
 
@@ -57,7 +57,7 @@ In an application consumer, pin both archives in each runtime and tooling manife
 
 ## Publication is a separate action
 
-Publication is outside this upgrade. A future authorized major-release train verifies Blueprint before Smallbusiness and requires its own approval. The explicit GitHub workflow publication job requires the owning repository, main branch, manual dispatch and OIDC. It checks registry identity and exact dependency integrity before publishing the reviewed archive; it does not rebuild during publication.
+Publish Blueprint before Smallbusiness, after independent exact-byte review and green source checks. Publication requires explicit owner authorization. The explicit GitHub workflow publication job requires the owning repository, main branch, manual dispatch and OIDC. It checks registry identity and exact dependency integrity before publishing the reviewed archive; it does not rebuild during publication.
 
 If a version already exists, verify it is byte-identical. Never overwrite it or treat an uncertain publish result as permission to resend. After publication, verify a fresh registry-only consumer and the existing quickstart examples. A local tarball test must not be reported as npm publication, and local validation must complete before any application rollout.
 

@@ -1,8 +1,8 @@
 # Run a workflow and inspect its evidence
 
-Use the prepared release kit to try two small examples derived from real applications: booking decisions and storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The prepared `footprint-blueprint@0.5.0` and optional `smallbusiness-footprint@0.5.0` candidates install from the kit’s two included tarballs; npm publication is pending.
+Use the prepared release kit to try two small examples derived from real applications: booking decisions and storefront publication. You need Node.js 24.15 or newer within the 24.x release line, and npm. The archived 0.5.0 kit uses its original two tarballs and dependencies. It is not an installation recipe for the 1.0.0 libraries. For 1.0.0 versions and dependency order, use the release runbook and migration guide.
 
-## Start
+## Archived kit
 
 Extract the release kit. Open a terminal in the extracted directory, then run:
 
@@ -45,9 +45,9 @@ The full booking app also stores its native recording and older evidence envelop
 
 ## Publication example
 
-The publication example follows Charming Cherubs' application boundary: an authorized, schema-validated action invokes an authoritative publication port. It uses two actual Platform actions connected through SMB's typed publication port. A current request succeeds and reports a committed publication effect. Repeating its captured version/revision guards fails with no additional commit. A current publication version paired with an old source revision also fails, and an unauthorized caller is rejected before an inner call.
+The publication example follows a host application boundary: an authorized, schema-validated action invokes an authoritative publication port. It uses two actual Platform actions connected through SMB's typed publication port. A current request succeeds and reports a committed publication effect. Repeating its captured version/revision guards fails with no additional commit. A current publication version paired with an old source revision also fails, and an unauthorized caller is rejected before an inner call.
 
-The application reports what its publication port confirms; the SDK does not infer a transaction from a successful return. Each `calls` link targets an actual recorded inner action. `committed` here describes the acknowledged in-memory port operation; it is not proof of durable database storage. The example uses local fixtures and reduced application patterns. The complete Charming Cherubs workflow and its source audit are available in the separate conference demo kit.
+The application reports what its publication port confirms; the SDK does not infer a transaction from a successful return. Each `calls` link targets an actual recorded inner action. `committed` here describes the acknowledged in-memory port operation; it is not proof of durable database storage. The example uses local fixtures and reduced application patterns. A fuller local workflow demonstration is available in the separate demo kit.
 
 | Scenario in output | Shared outcome | Writes |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ The application reports what its publication port confirms; the SDK does not inf
 
 For stale publication, the action response retains the domain `PUBLICATION_CONFLICT` code while the privacy-preserving receipt uses the generic `ACTION_EXECUTION_FAILED` code. It is a failure inside execution, distinct from authorization rejection.
 
-Charming's shared receipt is attached at its explicit `createPlatform` action boundary. `smallbusiness-footprint.executeServiceFlow` has its own native-recording result and does not automatically provide the same common receipt or effect reporting.
+The host’s shared receipt is attached at its explicit `createPlatform` action boundary. `smallbusiness-footprint.executeServiceFlow` has its own native-recording result and does not automatically provide the same common receipt or effect reporting.
 
 ## Read the output
 

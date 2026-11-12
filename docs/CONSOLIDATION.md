@@ -17,9 +17,9 @@ The canonical `footprint-blueprint@0.4.0` SDK uses Node 24.15–24.x and the new
 
 ## Application references
 
-Charming Cherubs currently uses verified local Blueprint and SMB tarballs. Its publication action reports explicit shared evidence around the authoritative application publisher, and its inner workflow retains its redacted v3 trace projection. Replacing those application tarballs with the prepared release is an explicit consumer update; old artifacts remain identifiable by their versions and hashes.
+An application can use verified Blueprint and SMB archives. Its publication action reports explicit shared evidence around the authoritative application publisher, and its inner workflow retains its redacted v3 trace projection. Replacing those application tarballs with the prepared release is an explicit consumer update; old artifacts remain identifiable by their versions and hashes.
 
-The release-kit quickstart consists of reduced examples derived from the booking and publication patterns. It does not claim to package the complete production applications. The separate conference demo kit supplies the fuller local workflow demonstration and Charming source audit.
+The release-kit quickstart consists of reduced examples derived from the booking and publication patterns. It does not claim to package the complete production applications. The separate conference demo kit supplies the fuller local workflow demonstration and application source audit.
 
 ## Provenance checks
 

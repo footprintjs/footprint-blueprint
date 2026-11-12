@@ -8,7 +8,7 @@ For platform developers serving several customer profiles from one codebase.
 
 ## One package, focused modules
 
-**Unreleased 1.0.0 source candidate:** requires `footprintjs@12.0.0` and `foottrace@1.15.0`, retaining the published 0.9.0 modules, optional expected-execution coverage, object-store records and provider lookup references. Current engine decisions use `answered`; stored `succeeded` labels remain readable. Missing capture and unknown inventories remain unresolved. See the [migration notes](docs/MIGRATION-1.0.md). This source branch does not authorize publication.
+**Version 1.0.0:** requires `footprintjs@12.0.0` and `foottrace@1.15.0`, retaining the published 0.9.0 modules, optional expected-execution coverage, object-store records and provider lookup references. Current engine decisions use `answered`; stored `succeeded` labels remain readable. Missing capture and unknown inventories remain unresolved. See the [migration notes](docs/MIGRATION-1.0.md). Source checks and immutable release approval remain separate.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
