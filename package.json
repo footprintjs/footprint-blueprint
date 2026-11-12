@@ -1,6 +1,6 @@
 {
   "name": "footprint-blueprint",
-  "version": "0.5.0",
+  "version": "0.9.0",
   "description": "TypeScript platform modules for scoped tenant profiles, feature configuration, adapter routing and action execution with retained evidence.",
   "type": "module",
   "main": "./dist/index.js",
@@ -55,6 +55,26 @@
       "types": "./dist/diagnostics/index.d.ts",
       "import": "./dist/diagnostics/index.js",
       "default": "./dist/diagnostics/index.js"
+    },
+    "./diagnostics/runtime": {
+      "types": "./dist/diagnostics/runtime.d.ts",
+      "import": "./dist/diagnostics/runtime.js",
+      "default": "./dist/diagnostics/runtime.js"
+    },
+    "./diagnostics/cause": {
+      "types": "./dist/diagnostics/cause.d.ts",
+      "import": "./dist/diagnostics/cause.js",
+      "default": "./dist/diagnostics/cause.js"
+    },
+    "./records/object-store": {
+      "types": "./dist/records/object-store.d.ts",
+      "import": "./dist/records/object-store.js",
+      "default": "./dist/records/object-store.js"
+    },
+    "./diagnostics/coverage": {
+      "types": "./dist/diagnostics/coverage.d.ts",
+      "import": "./dist/diagnostics/coverage.js",
+      "default": "./dist/diagnostics/coverage.js"
     }
   },
   "scripts": {
@@ -67,7 +87,8 @@
   "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "footprintjs": "10.1.0"
+    "footprintjs": "10.1.0",
+    "foottrace": "1.4.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

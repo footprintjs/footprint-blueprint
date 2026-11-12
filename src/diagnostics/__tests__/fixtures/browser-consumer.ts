@@ -1,5 +1,7 @@
 import { diagnoseFailureRecording, normalizeBoundaryError } from 'footprint-blueprint/diagnostics';
 import type { BoundaryEvidence, BoundaryErrorCategory, BoundaryErrorOptions, FailureDiagnosis, FailureRecording, NormalizedBoundaryError } from 'footprint-blueprint/diagnostics';
+import { createBoundaryRecorder } from 'footprint-blueprint/diagnostics/runtime';
+import type { BoundaryOperation, BoundaryCallContext, PhysicalAttemptObservation, BoundaryScope } from 'footprint-blueprint/diagnostics/runtime';
 
 const options: BoundaryErrorOptions = { system: 'directory', operation: 'lookup', effect: 'read',
   classify: fields => { const category: BoundaryErrorCategory = fields.name === 'NoAccess' ? 'auth' : 'unknown'; return category; } };
@@ -13,3 +15,10 @@ const rendered = document.createElement('p'); rendered.textContent = report.summ
 // @ts-expect-error Host policy cannot invent a retry effect vocabulary.
 const invalid: BoundaryErrorOptions = { system: 'directory', operation: 'lookup', effect: 'charge' };
 void invalid;
+const runtime = createBoundaryRecorder();
+const operation: BoundaryOperation = { system: 'directory', operation: 'lookup', target: 'directory.lookup', effect: 'read', timeoutMs: 500 };
+const transport: PhysicalAttemptObservation = { source: 'browser-fetch', outcome: 'ok', startedAt: Date.now(), durationMs: 0, phase: 'response-complete' };
+async function browserAdapter(scope: BoundaryScope) {
+  return runtime.run(scope, operation, (context: BoundaryCallContext) => { context.observePhysical(transport); return context.timeLeftMs(); });
+}
+void browserAdapter;

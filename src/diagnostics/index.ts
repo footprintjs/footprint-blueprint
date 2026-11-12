@@ -1,3 +1,4 @@
+import { readBoundaryRequestReference } from './requestReference.js';
 import { errorCategory, AttemptTimeoutError } from 'footprintjs';
 import type { BoundaryErrorCategory, BoundaryErrorFields, BoundaryNormalizationOptions, NormalizedBoundaryError, FailureRecording, FailureDiagnosis, FailureFinding, FailureNativeSnapshot, FailureNativeNode, FailureNativeAttempt } from './types.js';
 export type * from './types.js';
@@ -135,7 +136,7 @@ function nativeIndex(snapshot: FailureNativeSnapshot | null, runId: string) {
 export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   try { boundedJson(input); } catch { fail(); }
   const record = input as FailureRecording;
-  exact(record, ['schemaVersion', 'storeId', 'runId', 'flowId', 'nativeSnapshot', 'boundaryEvidence', 'diagnostics']);
+  exact(record, ['schemaVersion', 'storeId', 'runId', 'flowId', 'nativeSnapshot', 'boundaryEvidence', 'diagnostics'], ['physicalEvidence', 'coverage']);
   if (record.schemaVersion !== 1 || ![record.storeId, record.runId, record.flowId].every(identifier)
     || !Array.isArray(record.boundaryEvidence) || record.boundaryEvidence.length > 200) fail();
   exact(record.diagnostics, ['persistence', 'observer'], ['code']);
@@ -169,6 +170,39 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
     const result = { event, linked, ref: `boundaryEvidence#/${i}` }; ids.set(event.id, result); sequences.add(event.sequence); return result;
   });
   for (const { event } of events) if (event.causedBy !== undefined && (!ids.has(event.causedBy) || ids.get(event.causedBy)!.event.sequence >= event.sequence)) fail();
+  const physicalIds = new Set<string>(), physicalParents = new Set<string>();
+  if (record.physicalEvidence !== undefined) {
+    if (!Array.isArray(record.physicalEvidence) || record.physicalEvidence.length > 200 || !native.present) fail();
+    for (const p of record.physicalEvidence) {
+      exact(p, ['attemptId', 'parentAttemptId', 'source', 'phase', 'startedAt', 'durationMs', 'nativeDecisionMeaning', 'sdkRetryDecision'],
+        ['reportedAttempt', 'reportedMaximum', 'timeoutMs', 'timeLeftMs', 'requestReference']);
+      if (!identifier(p.attemptId) || !identifier(p.parentAttemptId) || physicalIds.has(p.attemptId) || !fieldLabel(p.source)
+        || !['response-complete', 'headers', 'dispatch'].includes(p.phase) || !Number.isFinite(p.startedAt) || !Number.isFinite(p.durationMs) || p.durationMs < 0
+        || p.nativeDecisionMeaning !== 'engine-interpretation' || p.sdkRetryDecision !== 'unknown'
+        || p.reportedAttempt !== undefined && (!integer(p.reportedAttempt) || p.reportedAttempt < 1)
+        || p.reportedMaximum !== undefined && (!integer(p.reportedMaximum) || p.reportedMaximum < (p.reportedAttempt ?? 1))
+        || p.timeoutMs !== undefined && (!Number.isFinite(p.timeoutMs) || p.timeoutMs <= 0) || p.timeLeftMs !== undefined && !Number.isFinite(p.timeLeftMs)) fail();
+      if (p.requestReference !== undefined && readBoundaryRequestReference(p.requestReference) === undefined) fail();
+      const observed = native.attempts.get(p.attemptId), parent = native.attempts.get(p.parentAttemptId);
+      const row = events.find(e => e.event.attemptId === p.attemptId), parentRow = events.find(e => e.event.attemptId === p.parentAttemptId);
+      if (!observed || !parent || !row || !parentRow || observed.record.kind !== 'observed' || parent.record.kind !== 'call'
+        || observed.stageId !== parent.stageId || observed.record.source !== p.source || observed.record.target !== parent.record.target
+        || row.event.target !== parentRow.event.target || row.event.operation !== parentRow.event.operation
+        || observed.record.startedAt !== p.startedAt || observed.record.durationMs !== p.durationMs
+        || p.reportedAttempt !== undefined && observed.record.attempt !== p.reportedAttempt
+        || observed.record.of !== p.reportedMaximum) fail();
+      physicalIds.add(p.attemptId); physicalParents.add(p.parentAttemptId);
+    }
+  }
+  if (record.coverage !== undefined) {
+    const c = record.coverage;
+    exact(c, ['logicalCalls', 'physicalObservations', 'inFlightCalls', 'droppedEvents', 'unboundObservations', 'lateReports', 'physicalAttemptCounts', 'sdkRetryDecisions', 'externalDelivery'], ['omittedObservations']);
+    if (['logicalCalls', 'physicalObservations', 'inFlightCalls', 'droppedEvents', 'unboundObservations', 'lateReports'].some(key => !integer(c[key as keyof typeof c]))
+      || c.physicalAttemptCounts !== 'reported-only' || c.sdkRetryDecisions !== 'unknown' || c.externalDelivery !== 'unknown'
+      || c.logicalCalls < events.filter(e => e.linked?.record.kind === 'call').length || c.physicalObservations < physicalIds.size
+      || c.omittedObservations !== undefined && !integer(c.omittedObservations)
+      || c.inFlightCalls > c.logicalCalls || record.physicalEvidence === undefined) fail();
+  }
   const causes: FailureFinding[] = [], consequences: FailureFinding[] = [], diagnosticFailures: FailureFinding[] = [], recommendations: string[] = [], unknowns: string[] = [];
   const entry = (code: string, summary: string, refs: string[]): FailureFinding => ({ code, summary, evidenceRefs: [...new Set(refs)] });
   const refsFor = (e: IndexedBoundary): string[] => [e.ref, ...(e.linked ? [e.linked.ref] : [])];
@@ -178,8 +212,19 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   if (native.dropped) unknowns.push('Native attempt evidence is truncated; omitted attempts cannot be reconstructed.');
   if (!events.length) unknowns.push('No adapter boundary evidence was recorded; no absence of external effects is established.');
   if (events.some(e => !e.linked)) unknowns.push('Some boundary events lack a verifiable physical attempt reference.');
+  const partialResponse = record.physicalEvidence?.some(p => p.phase !== 'response-complete' && native.attempts.get(p.attemptId)?.record.outcome === 'ok') ?? false;
+  const incompleteBoundary = partialResponse || record.coverage !== undefined && (record.diagnostics.observer === 'failed' || record.coverage.inFlightCalls > 0 || record.coverage.droppedEvents > 0 || record.coverage.unboundObservations > 0 || record.coverage.lateReports > 0 || (record.coverage.omittedObservations ?? 0) > 0);
+  if (incompleteBoundary) unknowns.push('Boundary collection is incomplete: unfinished work, omitted events or late SDK reports prevent complete transport accounting.');
+  if (partialResponse) unknowns.push('A successful transport observation covers only dispatch or response headers; complete response handling is not recorded.');
+  if (record.physicalEvidence?.some(p => p.requestReference !== undefined)) unknowns.push('Provider request references are adapter-reported lookup aids; they do not authenticate provider-internal execution or prove an external effect.');
+  if ([...native.attempts.values()].some(a => a.record.kind === 'observed')) unknowns.push('Observed attempt decisions are the engine interpretation, not the SDK retry policy. Transport observations do not independently prove external effects or provider delivery.');
+  if (record.coverage && record.coverage.logicalCalls > physicalParents.size) unknowns.push('Some logical SDK calls have no bound transport observations. No recorded transport observations is not evidence of zero provider sends.');
   if (native.present) for (const e of [...events].sort((a, b) => a.event.sequence - b.event.sequence)) {
     if (!failure(e)) continue;
+    // An aggregate SDK failure is not a second independent cause when its concrete transport failure is recorded.
+    if (e.event.attemptId && physicalParents.has(e.event.attemptId)
+      && events.some(p => p.event.attemptId && physicalIds.has(p.event.attemptId) && failure(p)
+        && record.physicalEvidence!.some(row => row.attemptId === p.event.attemptId && row.parentAttemptId === e.event.attemptId))) continue;
     let ancestor = e.event.causedBy ? ids.get(e.event.causedBy) : undefined, parent: IndexedBoundary | undefined;
     while (ancestor) { if (failure(ancestor)) parent = ancestor; ancestor = ancestor.event.causedBy ? ids.get(ancestor.event.causedBy) : undefined; }
     const localSummary = e.event.code !== undefined && Object.hasOwn(LOCAL_FINDINGS, e.event.code) ? LOCAL_FINDINGS[e.event.code as keyof typeof LOCAL_FINDINGS] : undefined;
@@ -196,7 +241,11 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   }
   type IndexedAttempt = NonNullable<ReturnType<typeof native.attempts.get>>;
   const groups = new Map<string, IndexedAttempt[]>(), logical = new Map<string, IndexedAttempt[]>(), logicalRecovered = new Set<string>();
-  for (const item of native.attempts.values()) { const key = `${item.stageId}|${item.record.series}`; if (!groups.has(key)) groups.set(key, []); groups.get(key)!.push(item); }
+  for (const item of native.attempts.values()) {
+    // observed().next/reason is not an SDK policy decision; it cannot establish SDK exhaustion or stop.
+    if (item.record.kind === 'observed') continue;
+    const key = `${item.stageId}|${item.record.series}`; if (!groups.has(key)) groups.set(key, []); groups.get(key)!.push(item);
+  }
   let recovered = false, terminal = false, incomplete = false;
   for (const item of native.attempts.values()) if (item.record.retryLoop?.phase === 'attempt') {
     const key = item.record.retryLoop.series;
@@ -223,12 +272,30 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
     if (failed.length && last.record.next === 'stop') {
       if (last.record.retryLoop === undefined || !logicalRecovered.has(last.record.retryLoop.series)) terminal = true;
       const codes = { exhausted: 'RETRY_EXHAUSTED_RECORDED', declined: 'RETRY_DECLINED_RECORDED', 'no-time-left': 'RETRY_DEADLINE_STOP_RECORDED', aborted: 'RUN_ABORT_RECORDED' };
-      if (Object.hasOwn(codes, last.record.reason)) consequences.push(entry(codes[last.record.reason as keyof typeof codes], `The native attempt series stopped with recorded reason ${last.record.reason}.`, [last.ref]));
+      const isLogicalSDKCall = record.coverage !== undefined && last.record.kind === 'call';
+      const isSingleStage = record.coverage !== undefined && last.record.kind === 'stage' && last.record.of === 1;
+      if (Object.hasOwn(codes, last.record.reason)) consequences.push(entry(isLogicalSDKCall ? 'LOGICAL_CALL_STOP_RECORDED' : isSingleStage ? 'STAGE_STOP_RECORDED' : codes[last.record.reason as keyof typeof codes],
+        isLogicalSDKCall ? `The logical SDK call ended with native reason ${last.record.reason}; this does not describe the SDK's internal retry decision.`
+          : isSingleStage ? `The single native stage attempt ended with recorded reason ${last.record.reason}.` : `The native attempt series stopped with recorded reason ${last.record.reason}.`, [last.ref]));
+    }
+  }
+  for (const parentId of physicalParents) {
+    const parent = native.attempts.get(parentId)!;
+    const attempts = record.physicalEvidence!.filter(p => p.parentAttemptId === parentId).map(p => native.attempts.get(p.attemptId)!);
+    const failed = attempts.find(a => a.record.outcome !== 'ok'), last = attempts.at(-1);
+    if (failed && last?.record.outcome === 'ok' && parent.record.outcome === 'ok') {
+      recovered = true; consequences.push(entry('PHYSICAL_RECOVERY_RECORDED', 'A failed transport observation was followed by a successful observation and an acknowledged logical SDK call. The SDK retry policy remains unknown.', [failed.ref, last.ref, parent.ref]));
     }
   }
   if (incomplete) unknowns.push('A recorded retry series has no terminal outcome.');
   const nativeUnknownEffects = [...native.attempts.values()].filter(item => item.record.effect === 'unknown');
-  const unknownEffect = nativeUnknownEffects.length > 0 || events.some(e => e.event.effect === 'unknown');
+  // Transport observation rows never assert a separate business effect. The original native touching call owns
+  // that effect, including an unknown one that no later successful physical read can erase.
+  const unknownEffect = nativeUnknownEffects.length > 0 || events.some(e => {
+    if (e.event.effect !== 'unknown') return false;
+    const physical = e.event.attemptId && record.physicalEvidence?.find(p => p.attemptId === e.event.attemptId);
+    return !physical || native.attempts.get(physical.parentAttemptId)?.record.effect !== 'applied';
+  });
   if (nativeUnknownEffects.length) consequences.push(entry('UNKNOWN_EXTERNAL_EFFECT_RECORDED',
     'The native recording retains an unknown external write effect. Omitting or changing a boundary sidecar cannot establish that the write was not applied.',
     nativeUnknownEffects.map(item => item.ref)));
@@ -240,7 +307,7 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   if (record.diagnostics.observer === 'failed') diagnosticFailures.push(entry('TRACE_OBSERVER_FAILED', 'The diagnostic observer was reported failed; it is not substituted for the original boundary failure.', ['diagnostics#/observer']));
   unknowns.push('The physical upstream root cause and imported recording authenticity are not independently verified.');
   const fullyBound = native.present && events.length > 0 && events.every(e => e.linked);
-  const status = !fullyBound || native.dropped || incomplete || unknownEffect ? 'unknown'
+  const status = !fullyBound || native.dropped || incomplete || incompleteBoundary || unknownEffect ? 'unknown'
     : events.every(e => e.event.outcome === 'ok') ? 'ok' : recovered && !terminal ? 'recovered' : terminal ? 'failed' : 'unknown';
   if (!recommendations.length) recommendations.push('Review the cited stored evidence and reproduce through injected local adapters before changing business behavior.');
   const evidenceRefs = [...new Set([...causes, ...consequences, ...diagnosticFailures].flatMap(e => e.evidenceRefs))];
@@ -248,6 +315,9 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
     causes, consequences, diagnosticFailures, recommendations, unknowns, evidenceRefs,
     coverage: { nativeRecording: native.present ? 'present' : 'missing', boundaryEvidence: events.length ? 'recorded' : 'not-recorded',
       nativeAttemptRecords: native.attempts.size || null, attemptBinding: fullyBound ? 'complete' : 'partial', attemptsTruncated: native.dropped,
+      logicalSDKCalls: record.coverage === undefined ? null : events.filter(e => e.linked?.record.kind === 'call').length,
+      physicalTransportAttempts: record.physicalEvidence === undefined || physicalIds.size === 0 && (record.coverage?.logicalCalls ?? 0) > 0 ? null : physicalIds.size,
+      physicalAttemptCounts: record.physicalEvidence === undefined ? 'not-recorded' : 'reported-only', sdkRetryDecisions: 'unknown',
       logicalRetryLinks: logical.size ? 'recorded' : 'not-recorded',
       upstreamRootCause: 'unknown', authenticity: 'local-import-unverified', externalEffect: unknownEffect ? 'unknown' : events.some(e => e.event.effect === 'confirmed') ? 'host-confirmed' : events.length ? 'none-recorded' : 'unknown',
       circuit: events.some(e => e.event.outcome === 'blocked' && e.event.code === 'CIRCUIT_OPEN') ? 'adapter-recorded' : 'not-recorded' } });

@@ -46,6 +46,10 @@ export type PlatformConfig = {
   readonly projectEvidenceRequest?: ActionExecutorOptions['projectEvidenceRequest'];
   /** Optional host-owned signal, deadline and correlation passed through to the execution engine. */
   readonly executionOptions?: ActionExecutorOptions['executionOptions'];
+  /** Optional host native sink factory; receives only an action id and fresh diagnostic locator. */
+  readonly recordSink?: ActionExecutorOptions['recordSink'];
+  readonly recordSinkFlushTimeoutMs?: ActionExecutorOptions['recordSinkFlushTimeoutMs'];
+  readonly captureCause?: ActionExecutorOptions['captureCause'];
   readonly resolverOptions?: ProfileResolverOptions;
 };
 

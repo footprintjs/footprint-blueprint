@@ -34,3 +34,46 @@ test('an existing version is accepted only as an identical already-published rel
   assert.throws(() => registryState(200, { ...metadata(), dist: {} }, expected));
   assert.throws(() => registryState(200, { ...metadata(), version: '1.2.4' }, expected));
 });
+
+const commerceRelease = () => {
+  const reviewed = { ...expected, name: 'smallbusiness-footprint', version: '0.9.0',
+    dependencies: { 'footprint-blueprint': '^0.9.0', footprintjs: '10.1.0', foottrace: '1.4.0', zod: '4.6.5' } };
+  return { reviewed, packed: { ...pkg(), name: reviewed.name, version: reviewed.version,
+    dependencies: { ...reviewed.dependencies } } };
+};
+
+test('only the reviewed Smallbusiness 0.9 Blueprint compatibility declaration is portable', () => {
+  const { reviewed, packed } = commerceRelease();
+  assertPackage(packed, reviewed);
+  assert.equal(registryState(200, { ...packed, dist: { integrity: sri,
+    tarball: 'https://registry.npmjs.org/smallbusiness-footprint/-/smallbusiness-footprint-0.9.0.tgz' } }, reviewed), 'identical');
+});
+
+test('a changed range or extra dependency never bypasses exact reviewed dependency equality', () => {
+  for (const edit of [
+    p => { p.dependencies['footprint-blueprint'] = '^0.9.1'; },
+    p => { p.dependencies['footprint-blueprint'] = '0.9.0'; },
+    p => { p.dependencies.extra = '1.0.0'; },
+  ]) {
+    const { reviewed, packed } = commerceRelease();
+    edit(packed); assert.throws(() => assertPackage(packed, reviewed));
+  }
+});
+
+test('the one compatibility exception cannot admit another release, package, dependency or range', () => {
+  const edits = [
+    p => { p.name = 'footprint-blueprint'; },
+    p => { p.version = '0.9.1'; },
+    p => { p.dependencies.other = p.dependencies['footprint-blueprint']; delete p.dependencies['footprint-blueprint']; },
+    p => { p.dependencies.footprintjs = '^10.1.0'; },
+    ...['^0.9.1', '~0.9.0', '*', '>=0.9.0', 'file:vendor/reviewed.tgz', 'workspace:^', 'https://example.com/reviewed.tgz']
+      .map(value => p => { p.dependencies['footprint-blueprint'] = value; }),
+  ];
+  for (const edit of edits) {
+    const { reviewed, packed } = commerceRelease();
+    edit(packed);
+    const equallyChangedReview = { ...reviewed, name: packed.name, version: packed.version,
+      dependencies: { ...packed.dependencies } };
+    assert.throws(() => assertPackage(packed, equallyChangedReview));
+  }
+});

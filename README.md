@@ -8,7 +8,7 @@ For platform developers serving several customer profiles from one codebase.
 
 ## One package, focused modules
 
-This local **`footprint-blueprint@0.5.0`** candidate pairs with the local `smallbusiness-footprint@0.5.0` candidate, adds reusable stored-failure diagnostics, and pins the separate `footprintjs@10.1.0` engine. This README describes the source checkout candidate; [npm registry releases](https://www.npmjs.com/package/footprint-blueprint) may contain different code even when version labels match. The existing six framework modules and focused import paths remain available.
+**`footprint-blueprint@0.9.0`** pairs with optional `smallbusiness-footprint@0.9.0` and pins the separate `footprintjs@10.1.0` engine with `foottrace@1.4.0`. It adds optional expected-execution coverage beside retained cause evidence: observed execution, missing proof and unknown inventories stay distinct. Incremental object-store records, provider lookup references and the existing six framework modules remain available through focused import paths. Publication and deployment are verified separately from a source build.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 
@@ -16,6 +16,7 @@ Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start wi
 import { defineModule, defineProfile } from 'footprint-blueprint/features';
 import { createEvidenceCollector } from 'footprint-blueprint/evidence';
 import { diagnoseFailureRecording } from 'footprint-blueprint/diagnostics';
+import { readRecordedCoverage } from 'footprint-blueprint/diagnostics/coverage';
 import { createPlatform } from 'footprint-blueprint/platform';
 
 // Load actions when your application reaches this point.
@@ -23,6 +24,8 @@ const { createActionRegistry } = await import('footprint-blueprint/actions');
 ```
 
 Subpaths select a module and its runtime dependencies. Static imports load that entry's dependency graph immediately; `await import()` defers loading until called. The root `footprint-blueprint` entry is a convenience re-export of Platform and loads all its framework layers. The focused Features and Evidence entries avoid the executor graph. Diagnostics uses the public engine error classifier but executes no flow or provider request. Package installation still downloads all declared dependencies: focused imports do not make npm download only part of the package. The release's loader checks record the modules loaded by these focused entries. Bundler tree shaking depends on the consuming application's configuration.
+
+The optional [cause and expected-work guide](docs/cause.md) explains authorized saved-record queries, bounded host-authored descriptions and shared Foottrace requirement results. A retained commit proves execution was observed; it does not establish a business or provider success. Missing proof remains unresolved and does not create a causal node or root cause.
 
 The [release runbook](docs/RELEASE.md), [consolidation record](docs/CONSOLIDATION.md) and [changelog](CHANGELOG.md) describe the two-artifact release and the separate Node 22 school compatibility path. The earlier seven-artifact kit is retained as a historical reference and is superseded by this packaging.
 
@@ -301,6 +304,20 @@ MIT
 
 ## Caller execution controls
 
+Hosts that need real provider attempt evidence can opt into [provider-boundary recording](docs/diagnostics-runtime.md) with `footprint-blueprint/diagnostics/runtime`. The request-local collector binds actual SDK transport observations to native FootprintJS attempt events, keeps logical calls separate from physical reports, and adds no retry loop, storage or model dependency.
+
 `ActionExecutorOptions.executionOptions` and `PlatformConfig.executionOptions` accept an optional synchronous host callback receiving `{actionId, context}`. It returns the engine's `signal`, `timeoutMs`, `deadline` and an `env` containing only `signal`, `deadline`, `traceparent`, `traceId` and `operationId`. The callback is trusted application configuration; tool input and `context.meta` cannot select these controls. No budget is added when it is omitted.
 
-Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. It does not add retries, storage journaling or provider policy. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.
+Blueprint captures this narrow envelope and delegates validation, cancellation, deadline composition and correlation to FootprintJS. These execution controls add no retries, storage journaling or provider policy; native storage is a separate opt-in below. Provider adapters still need to honor the host's cancellation signal and reconcile uncertain external outcomes. Trace runtime metadata comes from the public `footprintjs/package.json` manifest resolved by this library, so it reports the installed engine without an application-specific SDK export.
+
+
+### Incremental native records in object storage
+
+The optional `footprint-blueprint/records/object-store` import supplies `createObjectRecordSink` and `readObjectRecord`. Inject your own immutable object-storage port; no cloud SDK, credential lookup, polling or model call is built in. Pass the sink to FootprintJS10.1's native executor sink option. The read-only reader accepts only `get`/`list` and uses Foottrace1.1's stored-record reader, without reconstructing a snapshot.
+
+The adapter sends each entry as it arrives, caps queued bytes and concurrent requests, and stops diagnostic I/O at its flush deadline. Already acknowledged entries survive a killed writer; pending entries may be lost. A terminal marker, native gaps, unread rows and missing object sequences are reported separately. Configure privacy rules before execution and use opaque deployment/run IDs. See [the design and test contract](docs/records-object-store-design.md) for port types, limits, isolation and the real process-kill proof. Hosts should allow their native flush wait to exceed the adapter's own flush timeout so cancellation finishes before return.
+
+
+`ActionExecutorOptions.recordSink` and `PlatformConfig.recordSink` optionally receive a synchronous host factory: `({actionId, recordId}) => nativeSink | undefined`. Each execution receives a fresh diagnostic UUID independent of its native engine run ID. The factory gets no customer input or context. Native recording uses `onFailure: 'report'` and manual final flush; setup, entry and drain failures remain diagnostic. Existing acknowledged results and evidence/trace shapes are preserved, while `executionSnapshot.sink` records native loss counts. `onTraceError` receives fixed diagnostic messages.
+
+`recordSinkFlushTimeoutMs` bounds the final action drain from 0 through 2000 milliseconds (default 250). Use an action wait longer than the adapter's own flush deadline—for example, adapter 750ms and action 1000ms—so the adapter can abort its queue before return. The factory already knows the storage locator through `recordId`; no new business or customer capability is created.
