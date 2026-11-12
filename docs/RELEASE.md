@@ -7,7 +7,7 @@ Blueprint 1.0.0 and Smallbusiness 1.0.0 adopt FootPrint 12.0.0 and Foottrace 1.1
 | `footprint-blueprint` | 1.0.0 | `footprintjs@12.0.0`, `foottrace@1.15.0`, `ajv@8.20.0`, `ajv-formats@3.0.1` |
 | `smallbusiness-footprint` | 1.0.0 | `footprint-blueprint@1.0.0`, `footprintjs@12.0.0`, `foottrace@1.15.0`, `zod@4.6.5` |
 
-Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. Smallbusiness's development-only pnpm override points to the final `vendor/footprint-blueprint-1.0.0-release.tgz` release archive; its public manifest keeps the exact portable `1.0.0` dependency. The local archive allows consumer verification before Blueprint is published; it is not registry publication or immutable release approval. Freeze its exact source identity and integrity in the verification receipt. The packed archive must not include that development override or vendor archive.
+Use Node 24.15–24.x, npm 11.19.0 and pnpm 12.11.2. Each repository is its own package. For the Smallbusiness release, point its development-only pnpm override to the final `vendor/footprint-blueprint-1.0.0-release.tgz` release archive; its public manifest keeps the exact portable `1.0.0` dependency. The local archive allows consumer verification before Blueprint is published; it is not registry publication or immutable release approval. Freeze its exact source identity and integrity in the verification receipt. The packed archive must not include that development override or vendor archive.
 
 ## Verify source and build
 
