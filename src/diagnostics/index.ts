@@ -1,4 +1,9 @@
 import { readBoundaryRequestReference } from './requestReference.js';
+import { unknownWriteGuidance, unknownWriteLimit, upstreamRootLimit } from './guidance.js';
+import { runFailureExplanation } from './explanation.js';
+import type { FailureExplanation, FailureExplanationOptions } from './explanation.js';
+export { formatFailureExplanation, FailureExplanationError } from './explanation.js';
+export type { FailureExplanation, FailureExplanationSection, FailureExplanationOptions, FailureExplanationTemplate, FailureExplanationReason } from './explanation.js';
 import { errorCategory, AttemptTimeoutError } from 'footprintjs';
 import { attemptDecisionReasons } from './types.js';
 import type { BoundaryErrorCategory, BoundaryErrorFields, BoundaryNormalizationOptions, NormalizedBoundaryError, FailureRecording, FailureDiagnosis, FailureFinding, FailureNativeSnapshot, FailureNativeNode, FailureNativeAttempt } from './types.js';
@@ -300,13 +305,13 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
   if (nativeUnknownEffects.length) consequences.push(entry('UNKNOWN_EXTERNAL_EFFECT_RECORDED',
     'The native recording retains an unknown external write effect. Omitting or changing a boundary sidecar cannot establish that the write was not applied.',
     nativeUnknownEffects.map(item => item.ref)));
-  if (unknownEffect) { unknowns.push('An external effect is unknown. Neither an error, a timeout, nor a later successful call proves that the earlier write was not applied.'); recommendations.push('Reconcile the original operation with the authoritative adapter and original idempotency key before another write.'); }
+  if (unknownEffect) { unknowns.push(unknownWriteLimit); recommendations.push(unknownWriteGuidance); }
   if (causes.some(c => c.code === 'AUTH_REJECTION_RECORDED')) recommendations.push('Check the adapter credential and authorization configuration; a recorded rejection does not establish an upstream outage.');
   if (events.some(e => e.event.category === 'rate-limited')) recommendations.push('Review the recorded retry policy and bounded backoff against the remaining deadline; do not infer retry policy from an HTTP category.');
   if (events.some(e => e.event.outcome === 'blocked' && e.event.code === 'CIRCUIT_OPEN')) recommendations.push('Inspect the adapter-recorded circuit state before another attempt. This does not establish a production circuit breaker or an upstream outage.');
   if (record.diagnostics.persistence === 'failed') diagnosticFailures.push(entry('TRACE_PERSISTENCE_FAILED', 'Trace persistence was reported failed; this is separate from the business boundary outcome.', ['diagnostics#/persistence']));
   if (record.diagnostics.observer === 'failed') diagnosticFailures.push(entry('TRACE_OBSERVER_FAILED', 'The diagnostic observer was reported failed; it is not substituted for the original boundary failure.', ['diagnostics#/observer']));
-  unknowns.push('The physical upstream root cause and imported recording authenticity are not independently verified.');
+  unknowns.push(upstreamRootLimit);
   const fullyBound = native.present && events.length > 0 && events.every(e => e.linked);
   const status = !fullyBound || native.dropped || incomplete || incompleteBoundary || unknownEffect ? 'unknown'
     : events.every(e => e.event.outcome === 'ok') ? 'ok' : recovered && !terminal ? 'recovered' : terminal ? 'failed' : 'unknown';
@@ -322,4 +327,9 @@ export function diagnoseFailureRecording(input: unknown): FailureDiagnosis {
       logicalRetryLinks: logical.size ? 'recorded' : 'not-recorded',
       upstreamRootCause: 'unknown', authenticity: 'local-import-unverified', externalEffect: unknownEffect ? 'unknown' : events.some(e => e.event.effect === 'confirmed') ? 'host-confirmed' : events.length ? 'none-recorded' : 'unknown',
       circuit: events.some(e => e.event.outcome === 'blocked' && e.event.code === 'CIRCUIT_OPEN') ? 'adapter-recorded' : 'not-recorded' } });
+}
+
+/** Diagnose a stored recording, then record the deterministic presentation choice. No repair is executed. */
+export function createFailureExplanation(recording: unknown, options?: FailureExplanationOptions): Promise<FailureExplanation> {
+  return runFailureExplanation(recording, options, diagnoseFailureRecording);
 }

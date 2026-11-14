@@ -1,3 +1,8 @@
+## Unreleased
+
+- Add optional deterministic `formatFailureExplanation()` and `createFailureExplanation()` APIs on the diagnostics entry: Problem, Recorded cause and Suggested next step with bounded static templates.
+- Preserve canonical observations, evidence references and unknowns independently of supplementary configured wording. Ambiguous matches use defaults; unknown external effects retain reconciliation guidance and withhold configured advice. Templates execute no action and establish no new causal authority.
+
 # 1.0.0 — 2026-11-12
 
 - Migration: require FootPrint 12.0.0 and Foottrace 1.15.0 on Node 24.15–24.x.
