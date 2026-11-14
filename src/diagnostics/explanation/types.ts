@@ -18,6 +18,12 @@ export interface FailureExplanationSection {
   readonly wordingSource: 'default' | 'configured';
   readonly evidenceRefs: readonly string[];
 }
+/** Every original finding retains its category, machine code, summary and references. */
+export interface FailureExplanationFindings {
+  readonly causes: FailureDiagnosis['causes'];
+  readonly consequences: FailureDiagnosis['consequences'];
+  readonly diagnosticFailures: FailureDiagnosis['diagnosticFailures'];
+}
 export type FailureExplanationReason = 'matched' | 'no-templates' | 'no-match' | 'unavailable-facts' | 'ambiguous-templates' | 'ambiguous-findings';
 /** A presentation of a host-admitted diagnosis. Shape admission does not authenticate its producer. */
 export interface FailureExplanation {
@@ -26,6 +32,8 @@ export interface FailureExplanation {
   readonly problem: FailureExplanationSection;
   readonly recordedCause: FailureExplanationSection;
   readonly suggestedNextStep: FailureExplanationSection;
+  /** Mandatory canonical categories; templates cannot replace or remove their findings. */
+  readonly canonicalFindings: FailureExplanationFindings;
   /** Mandatory uncertainty retained verbatim, independently of any configured copy. */
   readonly unknowns: readonly string[];
   readonly coverage: FailureDiagnosis['coverage'];

@@ -1,5 +1,5 @@
 import { diagnoseFailureRecording, normalizeBoundaryError, formatFailureExplanation, createFailureExplanation } from 'footprint-blueprint/diagnostics';
-import type { BoundaryEvidence, BoundaryErrorCategory, BoundaryErrorOptions, FailureDiagnosis, FailureRecording, NormalizedBoundaryError, FailureExplanation, FailureExplanationTemplate } from 'footprint-blueprint/diagnostics';
+import type { BoundaryEvidence, BoundaryErrorCategory, BoundaryErrorOptions, FailureDiagnosis, FailureRecording, NormalizedBoundaryError, FailureExplanation, FailureExplanationFindings, FailureExplanationTemplate } from 'footprint-blueprint/diagnostics';
 import { createBoundaryRecorder } from 'footprint-blueprint/diagnostics/runtime';
 import type { BoundaryOperation, BoundaryCallContext, PhysicalAttemptObservation, BoundaryScope } from 'footprint-blueprint/diagnostics/runtime';
 
@@ -14,7 +14,8 @@ const report: FailureDiagnosis = diagnoseFailureRecording(record);
 const rendered = document.createElement('p'); rendered.textContent = report.summary;
 const templates: readonly FailureExplanationTemplate[] = [{ id: 'access', when: { findingCode: 'AUTH_REJECTION_RECORDED' }, problem: 'Access needs checking.' }];
 const explanation: FailureExplanation = formatFailureExplanation(report, { templates });
-rendered.textContent = explanation.recordedCause.text;
+const canonicalFindings: FailureExplanationFindings = explanation.canonicalFindings;
+rendered.textContent = canonicalFindings.diagnosticFailures[0]?.summary ?? explanation.recordedCause.text;
 void createFailureExplanation(record, { templates });
 // @ts-expect-error Presentation configuration cannot supply replacement causal certainty.
 const invalidTemplate: FailureExplanationTemplate = { id: 'invalid', when: { status: 'unknown' }, confidence: 'complete' };

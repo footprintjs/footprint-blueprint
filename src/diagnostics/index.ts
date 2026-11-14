@@ -3,7 +3,7 @@ import { unknownWriteGuidance, unknownWriteLimit, upstreamRootLimit } from './gu
 import { runFailureExplanation } from './explanation.js';
 import type { FailureExplanation, FailureExplanationOptions } from './explanation.js';
 export { formatFailureExplanation, FailureExplanationError } from './explanation.js';
-export type { FailureExplanation, FailureExplanationSection, FailureExplanationOptions, FailureExplanationTemplate, FailureExplanationReason } from './explanation.js';
+export type { FailureExplanation, FailureExplanationSection, FailureExplanationFindings, FailureExplanationOptions, FailureExplanationTemplate, FailureExplanationReason } from './explanation.js';
 import { errorCategory, AttemptTimeoutError } from 'footprintjs';
 import { attemptDecisionReasons } from './types.js';
 import type { BoundaryErrorCategory, BoundaryErrorFields, BoundaryNormalizationOptions, NormalizedBoundaryError, FailureRecording, FailureDiagnosis, FailureFinding, FailureNativeSnapshot, FailureNativeNode, FailureNativeAttempt } from './types.js';

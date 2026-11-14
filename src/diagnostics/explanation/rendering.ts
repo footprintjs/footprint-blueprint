@@ -16,6 +16,7 @@ export function renderExplanation(diagnosis: FailureDiagnosis, selection: Explan
     problem: section('Problem', diagnosis.summary, diagnosis.evidenceRefs, selection.wording?.problem),
     recordedCause: section('Recorded cause', cause, causeRefs, selection.wording?.recordedCause),
     suggestedNextStep: section('Suggested next step', next, diagnosis.evidenceRefs, selection.wording?.suggestedNextStep),
+    canonicalFindings: { causes: diagnosis.causes, consequences: diagnosis.consequences, diagnosticFailures: diagnosis.diagnosticFailures },
     unknowns: diagnosis.unknowns, coverage: diagnosis.coverage, evidenceRefs: diagnosis.evidenceRefs,
     template: { outcome: selection.reason === 'matched' ? 'configured' : 'default', reason: selection.reason,
       ...(selection.templateId === undefined ? {} : { id: selection.templateId }) },

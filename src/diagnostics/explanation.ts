@@ -9,7 +9,7 @@ import { selectWording } from './explanation/matching.js';
 import { renderExplanation } from './explanation/rendering.js';
 import { explanationChart } from './explanation/chart.js';
 export { FailureExplanationError } from './explanation/inert.js';
-export type { FailureExplanation, FailureExplanationSection, FailureExplanationOptions, FailureExplanationTemplate, FailureExplanationReason } from './explanation/types.js';
+export type { FailureExplanation, FailureExplanationSection, FailureExplanationFindings, FailureExplanationOptions, FailureExplanationTemplate, FailureExplanationReason } from './explanation/types.js';
 
 /** Format a host-admitted diagnosis DTO. This checks its shape, not producer authenticity or physical cause. */
 export function formatFailureExplanation(diagnosis: FailureDiagnosis, options?: FailureExplanationOptions): FailureExplanation {
