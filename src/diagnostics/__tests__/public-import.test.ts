@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
-test('the published diagnostics subpath loads only its two pure runtime functions without network access', () => {
-  const program = `globalThis.fetch = () => { throw new Error('NETWORK_FORBIDDEN'); };\nconst api = await import('footprint-blueprint/diagnostics');\nif (Object.keys(api).sort().join(',') !== 'diagnoseFailureRecording,normalizeBoundaryError') throw new Error('INVALID_EXPORTS');\nif (api.normalizeBoundaryError({status:503},{system:'directory',operation:'lookup',effect:'read'}).category !== 'server') throw new Error('INVALID_NORMALIZATION');\n`;
+test('the published diagnostics subpath exposes deterministic diagnostic presentation without network access', () => {
+  const program = `globalThis.fetch = () => { throw new Error('NETWORK_FORBIDDEN'); };\nconst api = await import('footprint-blueprint/diagnostics');\nif (Object.keys(api).sort().join(',') !== 'FailureExplanationError,createFailureExplanation,diagnoseFailureRecording,formatFailureExplanation,normalizeBoundaryError') throw new Error('INVALID_EXPORTS');\nif (api.normalizeBoundaryError({status:503},{system:'directory',operation:'lookup',effect:'read'}).category !== 'server') throw new Error('INVALID_NORMALIZATION');\n`;
   execFileSync(process.execPath, ['--input-type=module', '--eval', program], { cwd: root, timeout: 5000, encoding: 'utf8' });
   const implementation = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(implementation, /from\s+['"](?:node:|@aws|agentfootprint|react|smallbusiness-footprint)/);

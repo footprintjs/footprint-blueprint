@@ -1,5 +1,15 @@
 # footprint-blueprint
 
+## Optional owner-readable explanations
+
+`footprint-blueprint/diagnostics` can present a host-admitted stored diagnosis as **Problem → Recorded cause → Suggested next step**. Use `formatFailureExplanation(diagnosis, {templates})` for synchronous formatting, or `await createFailureExplanation(recording, {templates})` to include the existing strict reader and a local recorded presentation decision.
+
+Templates are optional bounded static data selected by exact diagnosis status and finding code. Canonical observations, evidence references, coverage and unknowns remain present. Configured copy is supplementary authored explanation, not verified cause evidence. Unknown write effects keep pinned reconciliation guidance and suppress configured advice. No recommendation is executed or authorized. Generic boundary codes do not establish a business-rule root.
+
+Every result includes `canonicalFindings`: all original causes, consequences and diagnostic failures, each with its code, summary and references. Present their categories separately; a recording failure does not become the business cause. Templates cannot hide these findings, including when no template or an ambiguous match uses defaults.
+
+See [the contract and example](docs/explanations.md). Domain packages can supply reviewed presets; UI consumers render the resolved sections without depending on domain policy.
+
 **Define once, derive everything** — a domain-agnostic platform framework for building configurable multi-tenant systems.
 
 For platform developers serving several customer profiles from one codebase.

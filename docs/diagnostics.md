@@ -1,6 +1,6 @@
 # Stored failure diagnostics
 
-`footprint-blueprint/diagnostics` provides two pure functions and TypeScript contracts. It does not run a flow, retry a request, access storage, contact a provider, send email or invoke a model. Hosts supply a redacted recording that they stored and reloaded. Commerce scenarios and provider-specific classifiers belong to the domain package or host adapter; admin views and translations belong to the application.
+`footprint-blueprint/diagnostics` provides pure normalization, diagnosis and optional explanation formatting with TypeScript contracts. Those functions do not run a flow, retry a request, access storage, contact a provider, send email or invoke a model. The optional asynchronous `createFailureExplanation()` facade runs a local presentation chart only; see [human-readable explanations](explanations.md). Hosts supply a redacted recording that they stored and reloaded. Commerce scenarios, wording presets and provider-specific classifiers belong to the domain package or host adapter; admin views belong to the application or UI library.
 
 ```ts
 import { diagnoseFailureRecording, normalizeBoundaryError } from 'footprint-blueprint/diagnostics';
