@@ -18,7 +18,9 @@ export function selectWording(diagnosis: FailureDiagnosis, templates: readonly F
     if (template.when.status !== undefined && template.when.status !== diagnosis.status) continue;
     const matches = template.when.findingCode === undefined ? [] : findings.filter(row => row.code === template.when.findingCode && row.evidenceRefs.length);
     if (template.when.findingCode !== undefined && !matches.length) continue;
-    if (matches.length > 1 || diagnosis.causes.length > 1) { ambiguous = true; continue; }
+    // A uniquely cited consequence may explain recovery without selecting one of several earlier causes.
+    // Status-only wording has no such binding, so competing causes still require the default view.
+    if (matches.length > 1 || template.when.findingCode === undefined && diagnosis.causes.length > 1) { ambiguous = true; continue; }
     const cause = diagnosis.causes.length === 1 && diagnosis.causes[0]!.code === template.when.findingCode
       && diagnosis.causes[0]!.evidenceRefs.length ? diagnosis.causes[0] : undefined;
     const slots: Partial<Record<ExplanationSlot, string>> = { status: diagnosis.status,
