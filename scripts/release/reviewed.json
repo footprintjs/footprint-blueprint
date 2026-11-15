@@ -1,8 +1,8 @@
 {
   "name": "footprint-blueprint",
-  "version": "1.0.0",
-  "sha256": "dc2c5608174e749c47fcf3d36bc099bec64a7afac2f8bae5c278d71d6959e565",
-  "integrity": "sha512-435xMhAS9cdEWDJyHALsJ+mqYhix43Q4XscxCUEH58rIlzzXIAOgyUbjyaCUpG2eInKKOI3lfHZi2r0AqgO/bg==",
+  "version": "1.1.0",
+  "sha256": "4e5b7da7a1ea4d35cc358acd5ea6a3595968f0f9f384749854f20ad614b45878",
+  "integrity": "sha512-30ActJcuHiz2IOVx+1tRqRHug6MBIGI7HapjmJnU5OP2ZQE2ZKR8DeVlzpu3pMktBtAjlQ6ZqieAUkG0uEUD3Q==",
   "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
