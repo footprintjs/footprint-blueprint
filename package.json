@@ -1,6 +1,6 @@
 {
   "name": "footprint-blueprint",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "TypeScript platform modules for scoped tenant profiles, feature configuration, adapter routing and action execution with retained evidence.",
   "type": "module",
   "main": "./dist/index.js",

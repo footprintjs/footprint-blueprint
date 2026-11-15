@@ -1,5 +1,7 @@
 ## Unreleased
 
+# 1.1.0 — 2026-11-14
+
 - Add optional deterministic `formatFailureExplanation()` and `createFailureExplanation()` APIs on the diagnostics entry: Problem, Recorded cause and Suggested next step with bounded static templates.
 - Preserve canonical observations, evidence references and unknowns independently of supplementary configured wording. Ambiguous matches use defaults; unknown external effects retain reconciliation guidance and withhold configured advice. Templates execute no action and establish no new causal authority.
 - Retain every original cause, consequence and diagnostic-failure code, summary and reference in mandatory `canonicalFindings`, including default and ambiguous presentations. The same whole-output budget and deep freeze cover these canonical buckets.
