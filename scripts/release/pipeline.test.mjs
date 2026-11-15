@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, join, delimiter } from 'node:path';
+import { resolve, join, delimiter, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -33,6 +33,35 @@ test('ordinary source packing does not mistake changed candidate bytes for relea
   assert.match(pack, /node scripts\/release\/check-candidate\.mjs release\/package\.tgz/);
   assert.match(pack, /git diff --exit-code/);
   assert.doesNotMatch(pack, /^        if:/m, 'Source candidates must be checked on every event.');
+});
+
+test('source-candidate staging uses the current version and leaves a stale archive untouched', async t => {
+  const pack = stepWith('npm pack --ignore-scripts');
+  const staging = pack.match(/^          (mv .+)$/m)?.[1];
+  assert.ok(staging, 'The actual workflow archive-staging command is required.');
+  const { name } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  for (const version of ['1.1.0', '2.7.3']) {
+    await t.test(version, () => {
+      const directory = mkdtempSync(join(tmpdir(), 'source-candidate-staging-'));
+      try {
+        mkdirSync(join(directory, 'release'));
+        writeFileSync(join(directory, 'package.json'), JSON.stringify({ name, version }));
+        const fresh = join(directory, 'release', `${name}-${version}.tgz`);
+        const stale = join(directory, 'release', `${name}-1.0.0.tgz`);
+        const bytes = Buffer.from(`fresh source candidate ${version}`);
+        writeFileSync(fresh, bytes);
+        writeFileSync(stale, 'stale source candidate 1.0.0');
+        const result = spawnSync('/bin/sh', ['-eu', '-c', staging], {
+          cwd: directory, encoding: 'utf8', timeout: 10000,
+          env: { ...process.env, PATH: dirname(process.execPath) + delimiter + process.env.PATH },
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.deepEqual(readFileSync(join(directory, 'release/package.tgz')), bytes);
+        assert.equal(readFileSync(stale, 'utf8'), 'stale source candidate 1.0.0');
+        assert.equal(existsSync(fresh), false);
+      } finally { rmSync(directory, { recursive: true, force: true }); }
+    });
+  }
 });
 
 test('every explicit publication retains archive approval, registry preflight and main-only downstream publication', () => {
