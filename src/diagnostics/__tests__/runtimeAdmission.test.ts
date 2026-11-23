@@ -27,7 +27,7 @@ async function returnedCall() {
   return { recording, snapshot };
 }
 
-describe('published FootPrint 12 and Foottrace 1.15 admission', () => {
+describe('installed engine and record runtime admission', () => {
   it('keeps the native answered label without upgrading transport or provider coverage', async () => {
     const { recording, snapshot } = await returnedCall();
     expect(snapshot.executionTree.attempts.some((row: { reason: string }) => row.reason === 'answered')).toBe(true);

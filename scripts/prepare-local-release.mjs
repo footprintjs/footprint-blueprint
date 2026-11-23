@@ -7,8 +7,7 @@ import { mkdir, readFile, readdir, copyFile, writeFile, mkdtemp, rm, cp } from '
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
-import { validateReleaseRuntime } from './release-contract.mjs';
+import { readInstalledRuntime, validateReleaseRuntime } from './release-contract.mjs';
 import { assertCandidateFiles } from './release/candidate.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,11 +20,8 @@ assert.ok(major === 24 && minor >= 15, 'Build on Node 24.15–24.x.');
 const business = path.resolve(root, '../smallbusiness-footprint');
 const sources = [root, business];
 const packages = await Promise.all(sources.map(async directory => {
-  const require = createRequire(path.join(directory, 'package.json'));
-  const engineManifest = require.resolve('footprintjs/package.json');
-  const engineRequire = createRequire(engineManifest);
-  return { directory, pkg: JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8')),
-    runtime: { footprintjs: require('footprintjs/package.json').version, foottrace: engineRequire('foottrace/package.json').version } };
+  const manifest = path.join(directory, 'package.json');
+  return { directory, pkg: JSON.parse(await readFile(manifest, 'utf8')), runtime: readInstalledRuntime(manifest) };
 }));
 // Resolve before any build or output: a stale or mixed installation cannot label a release.
 const runtime = validateReleaseRuntime(packages);
