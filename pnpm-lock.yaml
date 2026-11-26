@@ -173,11 +173,11 @@ importers:
         specifier: 3.0.1
         version: 3.0.1(ajv@8.20.0)
       footprintjs:
-        specifier: 12.0.0
-        version: 12.0.0
+        specifier: 14.3.0
+        version: 14.3.0(foottrace@2.3.2)
       foottrace:
-        specifier: 1.15.0
-        version: 1.15.0
+        specifier: 2.3.2
+        version: 2.3.2
     devDependencies:
       '@types/node':
         specifier: 24.19.2
@@ -504,17 +504,18 @@ packages:
       picomatch:
         optional: true
 
-  footprintjs@12.0.0:
-    resolution: {integrity: sha512-OaUaaqikMJFZt9XjFFWhIzhht5rIr+D2H8BxPuT/2SJMElmL0uUwDI2FqbgUwCW9dP52DZHct81gaaFjEgmS5A==}
+  footprintjs@14.3.0:
+    resolution: {integrity: sha512-pekliA0XwBZfBI2AF9Ce5YfgmC6p+CwqpERqCJvSjxFvFoBwgy5E9OoDWUs87uUdR9xb4BNxvhMIpe+NTfZYXA==}
     engines: {node: '>=22'}
     peerDependencies:
+      foottrace: ^2.3.1
       zod: ^3.0.0 || ^4.0.0
     peerDependenciesMeta:
       zod:
         optional: true
 
-  foottrace@1.15.0:
-    resolution: {integrity: sha512-n+KFhCWkO9rPGD8wIazNypRBl413iKoodXUrIXTMELM7GOb6VhCf+A7mRNYoMK4aGbZYzdoJHsxizKGkKLCbPw==}
+  foottrace@2.3.2:
+    resolution: {integrity: sha512-/+jT3hg6SxvHQVd1LVi/CqagL+wkwlqQmNuvaGJCstb7h6nwVyHGKIJGaqQVL5eedXpVYUSV9zXrcMAVZ7xbfA==}
     engines: {node: '>=22'}
 
   fsevents@2.3.3:
@@ -931,11 +932,11 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.7
 
-  footprintjs@12.0.0:
+  footprintjs@14.3.0(foottrace@2.3.2):
     dependencies:
-      foottrace: 1.15.0
+      foottrace: 2.3.2
 
-  foottrace@1.15.0: {}
+  foottrace@2.3.2: {}
 
   fsevents@2.3.3:
     optional: true

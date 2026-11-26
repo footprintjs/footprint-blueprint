@@ -1,6 +1,10 @@
 # Source candidate and release runbook
 
-Blueprint 1.0.0 and Smallbusiness 1.0.0 adopt FootPrint 12.0.0 and Foottrace 1.15.0. Keep prior published archives intact. The workflow binds publication to the exact archive identity in `scripts/release/reviewed.json`; prior approval records remain in version control and as separately named files. A version label or passing source check alone does not establish npm publication.
+The current Blueprint source candidate is 2.0.0 with exact dependencies on footprintjs 14.3.0 and foottrace 2.3.2. Its pull-request workflow produces the checked source archive. A downstream rehearsal can consume that exact archive before a separate release review and publication. Verify its digest and resolve the Foottrace package from both the host and its engine.
+
+## Historical 1.0.0 release kit
+
+Blueprint 1.0.0 and Smallbusiness 1.0.0 adopted FootPrint 12.0.0 and Foottrace 1.15.0. Keep prior published archives intact. The workflow binds publication to the exact archive identity in `scripts/release/reviewed.json`; prior approval records remain in version control and as separately named files. A version label or passing source check alone does not establish npm publication.
 
 | Package | Version | Exact runtime dependency declarations |
 | --- | --- | --- |

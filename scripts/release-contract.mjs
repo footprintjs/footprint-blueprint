@@ -1,4 +1,15 @@
 import assert from 'node:assert/strict';
+import { realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+export function readInstalledRuntime(sourceManifest) {
+  const fromSource = createRequire(sourceManifest);
+  const engine = fromSource.resolve('footprintjs/package.json');
+  const records = fromSource.resolve('foottrace/package.json');
+  const engineRecords = createRequire(engine).resolve('foottrace/package.json');
+  assert.equal(realpathSync(records), realpathSync(engineRecords), 'The source package and its engine must use one physical Foottrace installation.');
+  return { footprintjs: fromSource(engine).version, foottrace: fromSource(records).version };
+}
 
 /** A release pins what both source packages actually resolve, never a guessed SDK version. */
 export function validateReleaseRuntime(packages) {
@@ -13,6 +24,7 @@ export function validateReleaseRuntime(packages) {
   for (const { pkg, runtime: installed } of packages) {
     assert.ok(stable(pkg.version), 'Only stable shared versions belong in this release kit.');
     assert.equal(pkg.dependencies?.footprintjs, runtime.footprintjs, 'Source must pin its actual installed engine exactly.');
+    assert.equal(pkg.dependencies?.foottrace, runtime.foottrace, 'Source must pin its actual installed record runtime exactly.');
     assert.deepEqual(installed, runtime, 'Shared packages must resolve the same engine and record runtime versions.');
     for (const version of Object.values(pkg.dependencies ?? {})) assert.ok(!/^(workspace:|file:|link:)/.test(version), 'Release dependencies must be portable.');
   }
