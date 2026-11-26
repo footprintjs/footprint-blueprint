@@ -18,7 +18,7 @@ For platform developers serving several customer profiles from one codebase.
 
 ## One package, focused modules
 
-**2.0.0 source candidate.** Install `footprintjs@14.1.0` and its required peer `foottrace@2.3.2` together. Blueprint and the engine must resolve one physical Foottrace installation. Hosts upgrading from Blueprint 1.x should update both runtime pins and regenerate their lockfile. The [1.0 migration notes](docs/MIGRATION-1.0.md) cover previously stored decision labels.
+**Version 2.0.0:** install `footprintjs@14.3.0` and its required peer `foottrace@2.3.2` together. Blueprint and the engine must resolve one physical Foottrace installation. Hosts upgrading from Blueprint 1.x should update both runtime pins and regenerate their lockfile. The [1.0 migration notes](docs/MIGRATION-1.0.md) cover previously stored decision labels.
 
 Use Node 24.15–24.x. Source builds use TypeScript 7 and pnpm 12.11.2. Start with the entry point that matches your task:
 

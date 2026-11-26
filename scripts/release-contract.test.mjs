@@ -48,7 +48,7 @@ test('equal Foottrace versions cannot hide a second physical owner inside the en
     writeFileSync(join(target, 'package.json'), JSON.stringify({ name, version }));
     return target;
   }
-  const engine = install(root, 'footprintjs', '14.1.0');
+  const engine = install(root, 'footprintjs', '14.3.0');
   install(root, 'foottrace', '2.3.2');
   const manifest = join(root, 'package.json');
   install(engine, 'foottrace', '2.3.2');

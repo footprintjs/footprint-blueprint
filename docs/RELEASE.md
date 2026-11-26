@@ -1,6 +1,6 @@
 # Source candidate and release runbook
 
-The current Blueprint source candidate is 2.0.0 with exact dependencies on footprintjs 14.1.0 and foottrace 2.3.2. Its pull-request workflow produces the checked source archive. A downstream rehearsal can consume that exact archive before a separate release review and publication. Verify its digest and resolve the Foottrace package from both the host and its engine.
+The current Blueprint source candidate is 2.0.0 with exact dependencies on footprintjs 14.3.0 and foottrace 2.3.2. Its pull-request workflow produces the checked source archive. A downstream rehearsal can consume that exact archive before a separate release review and publication. Verify its digest and resolve the Foottrace package from both the host and its engine.
 
 ## Historical 1.0.0 release kit
 

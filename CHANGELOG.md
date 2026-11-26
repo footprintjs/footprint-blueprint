@@ -1,6 +1,6 @@
-## Unreleased
+# 2.0.0 — 2026-11-26
 
-- **Migration to 2.0.0.** Blueprint now pins footprintjs 14.1.0 and foottrace 2.3.2. Align both pins in consuming packages, regenerate the lockfile and verify that Blueprint and its engine resolve the same physical Foottrace installation.
+- **Migration to 2.0.0.** Blueprint now pins footprintjs 14.3.0 and foottrace 2.3.2. Align both pins in consuming packages, regenerate the lockfile and verify that Blueprint and its engine resolve the same physical Foottrace installation.
 
 # 1.1.0 — 2026-11-14
 
