@@ -1,13 +1,13 @@
 {
   "name": "footprint-blueprint",
-  "version": "1.1.0",
-  "sha256": "4e5b7da7a1ea4d35cc358acd5ea6a3595968f0f9f384749854f20ad614b45878",
-  "integrity": "sha512-30ActJcuHiz2IOVx+1tRqRHug6MBIGI7HapjmJnU5OP2ZQE2ZKR8DeVlzpu3pMktBtAjlQ6ZqieAUkG0uEUD3Q==",
+  "version": "2.0.0",
+  "sha256": "c81ec8d8c93b3424993c5854eb98bf4a2adec3dad028c34d1b136a0bcc3cd0ca",
+  "integrity": "sha512-qMHhFZNYkdXd7KHhrIpAwZU9RjriF/uWOorlKypg1dwKkon3CfNwS7ER2u0h+98eA+HWpY/ZY6z2SkP3jlI5qQ==",
   "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "footprintjs": "12.0.0",
-    "foottrace": "1.15.0"
+    "footprintjs": "14.3.0",
+    "foottrace": "2.3.2"
   },
   "runtime": [
     {
@@ -22,13 +22,13 @@
     },
     {
       "name": "footprintjs",
-      "version": "12.0.0",
-      "integrity": "sha512-OaUaaqikMJFZt9XjFFWhIzhht5rIr+D2H8BxPuT/2SJMElmL0uUwDI2FqbgUwCW9dP52DZHct81gaaFjEgmS5A=="
+      "version": "14.3.0",
+      "integrity": "sha512-pekliA0XwBZfBI2AF9Ce5YfgmC6p+CwqpERqCJvSjxFvFoBwgy5E9OoDWUs87uUdR9xb4BNxvhMIpe+NTfZYXA=="
     },
     {
       "name": "foottrace",
-      "version": "1.15.0",
-      "integrity": "sha512-n+KFhCWkO9rPGD8wIazNypRBl413iKoodXUrIXTMELM7GOb6VhCf+A7mRNYoMK4aGbZYzdoJHsxizKGkKLCbPw=="
+      "version": "2.3.2",
+      "integrity": "sha512-/+jT3hg6SxvHQVd1LVi/CqagL+wkwlqQmNuvaGJCstb7h6nwVyHGKIJGaqQVL5eedXpVYUSV9zXrcMAVZ7xbfA=="
     }
   ],
   "githubRepository": "footprintjs/footprint-blueprint",
